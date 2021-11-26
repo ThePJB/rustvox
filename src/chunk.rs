@@ -1,5 +1,32 @@
 use glow::*;
 
+
+fn generate_blocks(ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+    let mut blocks = vec![Block::Air; S*S*S];
+    for j in 0..S {
+        for k in 0..S {
+            for i in 0..S {
+                let idx = k*S + j*S*S + i;
+                let x = ox + i as i32;
+                let y = oy + j as i32;
+                let z = oz + k as i32;
+                blocks[idx] = 
+                    if y > 8 {
+                        Block::Air
+                    } else if y > 7 {
+                        Block::Grass
+                    } else if y > 4 {
+                        Block::Dirt
+                    } else {
+                        Block::Stone
+                    };
+            }
+        }
+    }
+    blocks
+}
+
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Block {
     Air,
@@ -8,7 +35,7 @@ pub enum Block {
     Stone,
 }
 
-const S: usize = 16;
+pub const S: usize = 16;
 
 pub struct Chunk {
     blocks: Vec<Block>,
@@ -40,26 +67,8 @@ impl Chunk {
             (vao, vbo, ebo)
         };
 
-        let mut blocks = vec![Block::Air; S*S*S];
-        for j in 0..S {
-            for k in 0..S {
-                for i in 0..S {
-                    let idx = k*S + j*S*S + i;
-                    blocks[idx] = 
-                        if j > 8 {
-                            Block::Air
-                        } else if j > 7 {
-                            Block::Grass
-                        } else if j > 4 {
-                            Block::Dirt
-                        } else {
-                            Block::Stone
-                        };
-                }
-            }
-        }
         Chunk {
-            blocks,
+            blocks: generate_blocks(x*S as i32, y*S as i32, z*S as i32),
             vao,
             vbo,
             ebo, 

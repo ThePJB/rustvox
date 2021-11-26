@@ -1,6 +1,9 @@
 #![feature(vec_into_raw_parts)]
 mod chunk;
+mod chunk_manager;
 mod elemesh;
+mod kmath;
+mod krand;
 
 use glow::*;
 use glam::{Vec3, Mat4};
@@ -10,6 +13,7 @@ use std::collections::HashSet;
 use std::f32::consts::PI;
 
 use chunk::*;
+use chunk_manager::*;
 use elemesh::*;
 
 /*
@@ -86,10 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
         // game stuff
-        let mut chunk = Chunk::new(&gl, 0, 0, 0);
-        let mut chunk2 = Chunk::new(&gl, 1, 0, 1);
-        chunk.generate_mesh(&gl);
-        chunk2.generate_mesh(&gl);
+        let mut chunk_manager = ChunkManager::new(&gl);
 
         let test_cube_vertex_buffer = vec![
             -1.0f32, 1.0, 1.0,
@@ -269,7 +270,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new(window_x as i32, window_y as i32));
 
-                    let speed = 8.0f32;
+                    let speed = 32.0f32;
                     if held_keys.contains(&glutin::event::VirtualKeyCode::W) {
                         let movt_dir = Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize();
                         camera_pos += speed*dt as f32*movt_dir;
@@ -293,6 +294,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                         camera_pos.y += -speed*dt as f32;
                     }
 
+                    chunk_manager.treadmill(&gl, kmath::Vec3{x:camera_pos.x, y:camera_pos.y, z:camera_pos.z});
+
                     // draw
                     gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
 
@@ -312,8 +315,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
                     cube.draw(&gl);
-                    chunk.draw(&gl);
-                    chunk2.draw(&gl);
+                    chunk_manager.draw(&gl);
 
                     window.swap_buffers().unwrap();
 
@@ -346,9 +348,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     let rotation_mat = Mat4::from_rotation_y(camera_yaw) * Mat4::from_rotation_x(camera_pitch);
                     camera_dir = rotation_mat.transform_vector3(Vec3::new(0.0, 0.0, 1.0));
-
-                    // println!("axis: {:?} value: {:?}", axis, value);
-                     println!("pitch {} yaw {}", camera_pitch, camera_yaw);
                 },
 
 
