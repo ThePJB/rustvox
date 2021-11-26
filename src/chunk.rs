@@ -168,6 +168,32 @@ impl Chunk {
                     }
 
                     for face in 0..6 {
+                        // cull
+                        // 0: +z
+                        // 1: -z
+                        // 2: -y
+                        // 3: +y
+                        // 4: +x
+                        // 5: -x
+                        if face == 0 && k < S-1 && self.blocks[idx + S] != Block::Air {
+                            continue;
+                        }
+                        if face == 1 && k > 0 && self.blocks[idx - S] != Block::Air {
+                            continue;
+                        }
+                        if face == 2 && j > 0 && self.blocks[idx - S*S] != Block::Air {
+                            continue;
+                        }
+                        if face == 3 && j < S-1 && self.blocks[idx + S*S] != Block::Air {
+                            continue;
+                        }
+                        if face == 4 && i < S-1 && self.blocks[idx + 1] != Block::Air {
+                            continue;
+                        }
+                        if face == 5 && i > 0 && self.blocks[idx - 1] != Block::Air {
+                            continue;
+                        }
+
                         for vert in 0..4 {
                             vertex_buffer.push(cube_verts[face*12 + vert*3] + i as f32 + S as f32 * self.x as f32);
                             vertex_buffer.push(cube_verts[face*12 + vert*3+1] + j as f32 + S as f32 * self.y as f32);
