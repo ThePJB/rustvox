@@ -1,5 +1,39 @@
 use glow::*;
+use crate::krand::*;
+use bytemuck::*;
 
+pub const S: usize = 16;
+
+fn generate_blocks_noise(ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+    let mut blocks = vec![Block::Air; S*S*S];
+    for k in 0..S {
+        let z = oz*S as i32 + k as i32;
+
+        for i in 0..S {
+            let x = ox*S as i32 + i as i32;
+            let height = (50.0 * fgrad2_isotropic(0.01 * x as f32, 0.01 * z as f32, 69)) as i32;
+            for j in 0..S {
+                let idx = k*S + j*S*S + i;
+                let y = oy*S as i32 + j as i32;
+
+                let block = if y > height {
+                    Block::Air
+                } else if y == height {
+                    Block::Grass
+                } else if y > height - 3 {
+                    Block::Dirt
+                } else if y <= height - 3 {
+                    Block::Stone
+                } else {
+                    Block::Wat
+                };
+
+                blocks[idx] = block;
+            }
+        }
+    }
+    blocks
+}
 
 fn generate_blocks(ox: i32, oy: i32, oz: i32) -> Vec<Block> {
     let mut blocks = vec![Block::Air; S*S*S];
@@ -27,15 +61,15 @@ fn generate_blocks(ox: i32, oy: i32, oz: i32) -> Vec<Block> {
 }
 
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Block {
     Air,
     Dirt,
     Grass,
     Stone,
+    Wat,
 }
 
-pub const S: usize = 16;
 
 pub struct Chunk {
     blocks: Vec<Block>,
@@ -51,6 +85,8 @@ pub struct Chunk {
     z: i32,
 }
 
+// todo impl drop
+
 impl Chunk {
     pub fn new(gl: &glow::Context, x: i32, y: i32, z: i32) -> Chunk {
         let (vao, vbo, ebo) = unsafe {
@@ -63,12 +99,15 @@ impl Chunk {
             gl.enable_vertex_attrib_array(0);
             gl.vertex_attrib_pointer_f32(1, 3, glow::FLOAT, false, 4*2*3, 4*3);
             gl.enable_vertex_attrib_array(1);
+
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            gl.bind_vertex_array(None);
             
             (vao, vbo, ebo)
         };
 
         Chunk {
-            blocks: generate_blocks(x*S as i32, y*S as i32, z*S as i32),
+            blocks: generate_blocks_noise(x, y, z),
             vao,
             vbo,
             ebo, 
@@ -116,7 +155,7 @@ impl Chunk {
         let mut vertex_buffer = Vec::new();
         let mut element_buffer = Vec::new();
 
-        let mut index: u16 = 0;
+        let mut index: u32 = 0;
 
         for j in 0..S {
             for k in 0..S {
@@ -139,6 +178,8 @@ impl Chunk {
                                 Block::Dirt => {[0.7, 0.5, 0.2]},
                                 Block::Grass => {[0.0, 1.0, 0.0]},
                                 Block::Stone => {[0.6, 0.6, 0.6]},
+                                Block::Wat => {[1.0, 0.0, 1.0]},
+                
                             };
                             
                             vertex_buffer.push(colour[0]);
@@ -161,22 +202,18 @@ impl Chunk {
         self.num_triangles = element_buffer.len() as i32;
         
         unsafe {
-            let vertex_u8 = {
-                let (ptr, len, cap) = vertex_buffer.into_raw_parts();
-                Vec::from_raw_parts(ptr as *mut u8, len*4, cap*4)
-            };
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
-            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &vertex_u8, glow::STATIC_DRAW);
+            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, cast_slice(&vertex_buffer), glow::STATIC_DRAW);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
             
-            let element_u8 = {
-                let (ptr, len, cap) = element_buffer.into_raw_parts();
-                Vec::from_raw_parts(ptr as *mut u8, len*2, cap*2)
-            };
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.ebo));
-            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &element_u8, glow::STATIC_DRAW);
-        }
-        
 
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.ebo));
+            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, cast_slice(&element_buffer), glow::STATIC_DRAW);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+        }
+
+        //drop(vertex_buffer);
+        //drop(element_buffer);
     }
 
     pub fn draw(&self, gl: &glow::Context) {
@@ -184,7 +221,19 @@ impl Chunk {
             gl.bind_vertex_array(Some(self.vao));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.ebo));
-            gl.draw_elements(glow::TRIANGLES, self.num_triangles, glow::UNSIGNED_SHORT, 0);
+            gl.draw_elements(glow::TRIANGLES, self.num_triangles, glow::UNSIGNED_INT, 0);
+            
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+
+        }
+    }
+
+    pub fn destroy(&mut self, gl: &glow::Context) {
+        unsafe {
+            gl.delete_buffer(self.vbo);
+            gl.delete_buffer(self.ebo);
+            gl.delete_vertex_array(self.vao);
         }
     }
 }

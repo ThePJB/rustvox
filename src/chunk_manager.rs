@@ -39,18 +39,6 @@ pub struct ChunkManager {
 impl ChunkManager {
     pub fn new(gl: &glow::Context) -> ChunkManager {
         let mut chunk_map = HashMap::new();
-        chunk_map.insert((0,0,0), Chunk::new(gl, 0, 0, 0));
-        chunk_map.insert((1,0,1), Chunk::new(gl, 1, 0, 1));
-        chunk_map.insert((1,0,0), Chunk::new(gl, 1, 0, 0));
-        chunk_map.insert((0,0,1), Chunk::new(gl, 0, 0, 1));
-        chunk_map.insert((0,1,0), Chunk::new(gl, 0, 1, 0));
-        chunk_map.insert((1,1,1), Chunk::new(gl, 1, 1, 1));
-        chunk_map.insert((1,1,0), Chunk::new(gl, 1, 1, 0));
-        chunk_map.insert((0,1,1), Chunk::new(gl, 0, 1, 1));
-
-        for (_, chunk) in chunk_map.iter_mut() {
-            chunk.generate_mesh(gl);
-        }
 
         ChunkManager {
             chunk_map,
@@ -66,31 +54,32 @@ impl ChunkManager {
     }
 
     pub fn treadmill(&mut self, gl: &glow::Context, pos: Vec3) {
-        let chunk_radius = 4;
+        let chunk_radius = 6;
         let in_chunk = ChunkCoordinates::containing_world_pos(pos);
 
-        self.chunk_map.retain(|(x,y,z), _| {
+        self.chunk_map.retain(|(x,y,z), chunk| {
             let keep =(x - in_chunk.x).abs() <= chunk_radius &&
             (y - in_chunk.y).abs() <= chunk_radius &&
             (z - in_chunk.z).abs() <= chunk_radius;
 
             if !keep {
                 println!("in {:?} unloading {},{},{}", in_chunk, x, y, z);
+                chunk.destroy(gl);
             }
 
             keep
         });
 
-        for i in -chunk_radius..chunk_radius {
-            for j in -chunk_radius..chunk_radius {
-                for k in -chunk_radius..chunk_radius {
+        for i in -chunk_radius..=chunk_radius {
+            for j in -chunk_radius..=chunk_radius {
+                for k in -chunk_radius..=chunk_radius {
                     let x = in_chunk.x + i;
                     let y = in_chunk.y + j;
                     let z = in_chunk.z + k;
                     if !self.chunk_map.contains_key(&(x,y,z)) {
-                        self.chunk_map.insert((x,y,z), Chunk::new(gl, x, y, z));
-                        self.chunk_map.get_mut(&(x,y,z)).unwrap().generate_mesh(gl);
-                        println!("loading {},{},{}", x,y,z)
+                        let mut new_chunk = Chunk::new(gl, x, y, z);
+                        new_chunk.generate_mesh(gl);
+                        self.chunk_map.insert((x,y,z), new_chunk);
                     }
                 }
             }

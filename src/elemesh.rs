@@ -33,6 +33,8 @@ impl Elemesh {
             gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &vertex_u8, glow::STATIC_DRAW);
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ebo));
             gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &element_u8, glow::STATIC_DRAW);
+            drop(element_u8);
+            drop(vertex_u8);
 
             (vao, vbo, ebo)
         };
