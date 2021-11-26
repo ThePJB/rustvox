@@ -1,5 +1,6 @@
 #![feature(vec_into_raw_parts)]
 mod chunk;
+mod elemesh;
 
 use glow::*;
 use glam::{Vec3, Mat4};
@@ -9,6 +10,7 @@ use std::collections::HashSet;
 use std::f32::consts::PI;
 
 use chunk::*;
+use elemesh::*;
 
 /*
 Coordinate system:
@@ -43,13 +45,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
         window.window().set_cursor_grab(true)?;
         window.window().set_cursor_visible(false);
-        
+
         let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
         gl.enable(DEPTH_TEST);
         gl.debug_message_callback(|a, b, c, d, msg| {
             println!("{} {} {} {} msg: {}", a, b, c, d, msg);
         });
-        
+
         let program = gl.create_program().expect("Cannot create program");
 
         {   // Shader stuff
@@ -84,46 +86,150 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
         // game stuff
-        println!("make new chunk");
-        //let mut chunk = Chunk::new(&gl, 0, 0, 0);
-        //let mut chunk2 = Chunk::new(&gl, 1, 0, 1);
-        println!("mesh chunk");
-        //chunk.generate_mesh(&gl);
-        //chunk2.generate_mesh(&gl);
-        println!("mesh chunk done");
+        let mut chunk = Chunk::new(&gl, 0, 0, 0);
+        let mut chunk2 = Chunk::new(&gl, 1, 0, 1);
+        chunk.generate_mesh(&gl);
+        chunk2.generate_mesh(&gl);
 
-        let plane_vao = gl.create_vertex_array().unwrap();
-        
-        let plane_vbo = gl.create_buffer().unwrap();
-        gl.bind_buffer(glow::ARRAY_BUFFER, Some(plane_vbo));
-        
-        gl.bind_vertex_array(Some(plane_vao));
-        gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, 4*2*3, 0);
-        gl.enable_vertex_attrib_array(0);
-        gl.vertex_attrib_pointer_f32(1, 3, glow::FLOAT, false, 4*2*3, 4*3);
-        gl.enable_vertex_attrib_array(1);
+        let test_cube_vertex_buffer = vec![
+            -1.0f32, 1.0, 1.0,
+            1.0, 0.0, 0.0,
 
-        let vert = vec![
+            -1.0, -1.0, 1.0,
+            0.0, 1.0, 0.0,
+
+            1.0, -1.0, 1.0,
+            0.0, 0.0, 1.0,
+
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+
+
             -1.0, 1.0, -1.0,
             1.0, 0.0, 0.0,
 
-            1.0, 1.0, -1.0,
+            -1.0, -1.0, -1.0,
             0.0, 1.0, 0.0,
 
-            -1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
             0.0, 0.0, 1.0,
+
+            1.0, 1.0, -1.0,
+            1.0, 1.0, 1.0,
+
+
+
+            -1.0, -1.0, 1.0,
+            1.0, 0.0, 0.0,
+
+            -1.0, -1.0, -1.0,
+            0.0, 1.0, 0.0,
+
+            1.0, -1.0, -1.0,
+            0.0, 0.0, 1.0,
+
+            1.0, -1.0, 1.0,
+            1.0, 1.0, 1.0,
+
+
+            -1.0, 1.0, 1.0,
+            1.0, 0.0, 0.0,
+
+            -1.0, 1.0, -1.0,
+            0.0, 1.0, 0.0,
+
+            1.0, 1.0, -1.0,
+            0.0, 0.0, 1.0,
+
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+
+
+            1.0, 1.0, -1.0,
+            1.0, 0.0, 0.0,
+
+            1.0, -1.0, -1.0,
+            0.0, 1.0, 0.0,
+
+            1.0, -1.0, 1.0,
+            0.0, 0.0, 1.0,
+
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+
+
+            -1.0, 1.0, -1.0,
+            1.0, 0.0, 0.0,
+
+            -1.0, -1.0, -1.0,
+            0.0, 1.0, 0.0,
+
+            -1.0, -1.0, 1.0,
+            0.0, 0.0, 1.0,
+
+            -1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+
+
         ];
 
-        let vert_u8 = unsafe {
-            let (ptr, len, cap) = vert.into_raw_parts();
-            Vec::from_raw_parts(ptr as *mut u8, len*4, cap*4)
-        };
-        gl.bind_buffer(glow::ARRAY_BUFFER, Some(plane_vbo));
-        gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &vert_u8, glow::STATIC_DRAW);
-        
-        
 
-        let mut camera_pos = Vec3::new(0.0, 0.0, -2.0);
+        let test_cube_index_buffer = vec![
+            0u16, 1, 2, 0, 2, 3,
+
+            4, 5, 6, 4, 6, 7,
+
+            8, 9, 10, 8, 10, 11,
+
+            12, 13, 14, 12, 14, 15,
+
+            16, 17, 18, 16, 18, 19,
+
+            20, 21, 22, 20, 22, 23,
+        ];
+
+        let cube = Elemesh::new(&gl, test_cube_vertex_buffer, test_cube_index_buffer);
+
+        let plane_s = 10000.0;
+        let plane_h = 0.1;
+
+        // sky plane void plane
+        let plane_verts = vec![
+            -plane_s, plane_h, -plane_s,
+            0.4, 0.4, 0.7,
+
+            plane_s, plane_h, -plane_s,
+            0.4, 0.4, 0.7,
+
+            plane_s, plane_h, plane_s,
+            0.4, 0.4, 0.7,
+
+            -plane_s, plane_h, plane_s,
+            0.4, 0.4, 0.7,
+
+
+            -plane_s, -plane_h, -plane_s,
+            0.0, 0.0, 0.0,
+
+            plane_s, -plane_h, -plane_s,
+            0.0, 0.0, 0.0,
+
+            plane_s, -plane_h, plane_s,
+            0.0, 0.0, 0.0,
+
+            -plane_s, -plane_h, plane_s,
+            0.0, 0.0, 0.0,
+        ];
+
+        let plane_idxs = vec![
+            0u16, 1, 2, 0, 2, 3,
+            4, 5, 6, 4, 6, 7,
+        ];
+
+        let plane = Elemesh::new(&gl, plane_verts, plane_idxs);
+
+
+        let mut camera_pos = Vec3::new(0.0, 0.0, -5.0);
         let mut camera_dir = Vec3::new(0.0, 0.0, 1.0);
         let camera_up = Vec3::new(0.0, 1.0, 0.0);
         let mut camera_pitch = 0.0f32;
@@ -163,7 +269,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new(window_x as i32, window_y as i32));
 
-                    let speed = 2.0f32;
+                    let speed = 8.0f32;
                     if held_keys.contains(&glutin::event::VirtualKeyCode::W) {
                         let movt_dir = Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize();
                         camera_pos += speed*dt as f32*movt_dir;
@@ -189,93 +295,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     // draw
                     gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-                    
-                    // uniforms
+
                     gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "projection").as_ref(),
                     false, &proj.to_cols_array());
 
-                    let view = Mat4::look_at_lh(camera_pos, camera_pos + camera_dir, camera_up);
+                    let view_planes = Mat4::look_at_lh(Vec3::new(0.0, 0.0, 0.0), camera_dir, camera_up);
+                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "view").as_ref(),
+                    false, &view_planes.to_cols_array());
                     
+                    plane.draw(&gl);
+                    gl.clear(glow::DEPTH_BUFFER_BIT);
+                    
+                    let view = Mat4::look_at_lh(camera_pos, camera_pos + camera_dir, camera_up);
                     gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "view").as_ref(),
                         false, &view.to_cols_array());
 
 
-
-/*
-                    let ident = [
-                        1.0, 0.0, 0.0, 0.0,
-                        0.0, 1.0, 0.0, 0.0,
-                        0.0, 0.0, 1.0, 0.0,
-                        0.0, 0.0, 0.0, 1.0,
-                    ];
-
-                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "view").as_ref(),
-                        false, &ident);
-*/
-
-                    
-                    let plane_s = 1.0;
-                    // sky plane void plane
-                    /*
-                    let vert = vec![
-                        -plane_s, 1.0, -plane_s,
-                        0.4, 0.4, 0.7,
-                        
-                        plane_s, 1.0, -plane_s,
-                        0.4, 0.4, 0.7,
-                        
-                        plane_s, 1.0, plane_s,
-                        0.4, 0.4, 0.7,
-                        
-                        -plane_s, 1.0, -plane_s,
-                        0.4, 0.4, 0.7,
-                        
-                        -plane_s, 1.0, plane_s,
-                        0.4, 0.4, 0.7,
-                        
-                        plane_s, 1.0, plane_s,
-                        0.4, 0.4, 0.7,
-                        
-                        /*
-                        -plane_s, -1.0, -plane_s,
-                        0.0, 0.0, 0.0,
-                        
-                        plane_s, -1.0, -plane_s,
-                        0.0, 0.0, 0.0,
-                        
-                        plane_s, -1.0, plane_s,
-                        0.0, 0.0, 0.0,
-                        
-                        -plane_s, -1.0, -plane_s,
-                        0.0, 0.0, 0.0,
-                        
-                        -plane_s, -1.0, plane_s,
-                        0.0, 0.0, 0.0,
-                        
-                        plane_s, -1.0, plane_s,
-                        0.0, 0.0, 0.0,
-                        */
-                    ];
-                    */
-
-
-
-
-                    gl.bind_vertex_array(Some(plane_vao));
-                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(plane_vbo));
-                    gl.draw_arrays(glow::TRIANGLES, 0, 3);
-                    
-                    /*
-                    gl.clear(glow::DEPTH_BUFFER_BIT);
-
-
-                    
-                    
-                        */
-                    
-
-                    // chunk.draw(&gl);
-                    // chunk2.draw(&gl);
+                    cube.draw(&gl);
+                    chunk.draw(&gl);
+                    chunk2.draw(&gl);
 
                     window.swap_buffers().unwrap();
 
@@ -297,11 +335,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                         camera_yaw = (camera_yaw + sensitivity * value as f32 + 2.0*PI) % (2.0*PI);
                     } else {
                         camera_pitch = camera_pitch + sensitivity * value as f32;
-                        if camera_pitch < (-PI/2.0) {
-                            camera_pitch = -PI/2.0;
+                        let safety = 0.001;
+                        if camera_pitch < (-PI/2.0 + safety) {
+                            camera_pitch = (-PI/2.0 + safety);
                         }
-                        if camera_pitch > (PI/2.0) {
-                            camera_pitch = PI/2.0;
+                        if camera_pitch > (PI/2.0 - safety) {
+                            camera_pitch = (PI/2.0 - safety);
                         }
                     }
 
@@ -309,7 +348,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     camera_dir = rotation_mat.transform_vector3(Vec3::new(0.0, 0.0, 1.0));
 
                     // println!("axis: {:?} value: {:?}", axis, value);
-                    // println!("pitch {} yaw {}", camera_pitch, camera_yaw);
+                     println!("pitch {} yaw {}", camera_pitch, camera_yaw);
                 },
 
 

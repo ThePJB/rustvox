@@ -9,6 +9,5 @@ out vec3 vert_colour;
 void main() {
     vert_colour = in_colour;
     // vert_colour = (vec4(in_pos, 1.0)).xyz;
-    // gl_Position = projection * view * 
-    gl_Position = vec4(in_pos, 1.0);
+    gl_Position = projection * view * vec4(in_pos, 1.0);
 }
