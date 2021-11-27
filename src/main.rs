@@ -4,6 +4,8 @@ mod chunk_manager;
 mod elemesh;
 mod kmath;
 mod krand;
+mod priority_queue;
+mod world_gen;
 
 use glow::*;
 use glam::{Vec3, Mat4};
@@ -52,11 +54,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
         gl.enable(DEPTH_TEST);
+        gl.enable(CULL_FACE);
         gl.debug_message_callback(|a, b, c, d, msg| {
             println!("{} {} {} {} msg: {}", a, b, c, d, msg);
         });
 
-        let program = gl.create_program().expect("Cannot create program");
+        let program_pc = gl.create_program().expect("Cannot create program");
 
         {   // Shader stuff
             let shader_version = "#version 410";
@@ -74,18 +77,49 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if !gl.get_shader_compile_status(shader) {
                     panic!("{}", gl.get_shader_info_log(shader));
                 }
-                gl.attach_shader(program, shader);
+                gl.attach_shader(program_pc, shader);
                 shaders.push(shader);
             }
-            gl.link_program(program);
-            if !gl.get_program_link_status(program) {
-                panic!("{}", gl.get_program_info_log(program));
+            gl.link_program(program_pc);
+            if !gl.get_program_link_status(program_pc) {
+                panic!("{}", gl.get_program_info_log(program_pc));
             }
             for shader in shaders {
-                gl.detach_shader(program, shader);
+                gl.detach_shader(program_pc, shader);
                 gl.delete_shader(shader);
             }
-            gl.use_program(Some(program));
+        }
+
+        let program_pcn = gl.create_program().expect("Cannot create program");
+
+        {   // Shader stuff
+            let shader_version = "#version 410";
+            let shader_sources = [
+                (glow::VERTEX_SHADER, std::fs::read_to_string("src/pcn.vert")?),
+                (glow::FRAGMENT_SHADER, std::fs::read_to_string("src/pcn.frag")?),
+            ];
+            let mut shaders = Vec::with_capacity(shader_sources.len());
+            for (shader_type, shader_source) in shader_sources.iter() {
+                let shader = gl
+                    .create_shader(*shader_type)
+                    .expect("Cannot create shader");
+                gl.shader_source(shader, &format!("{}\n{}", shader_version, shader_source));
+                gl.compile_shader(shader);
+                if !gl.get_shader_compile_status(shader) {
+                    panic!("{}", gl.get_shader_info_log(shader));
+                }
+                gl.attach_shader(program_pcn, shader);
+                shaders.push(shader);
+            }
+            gl.link_program(program_pcn);
+            if !gl.get_program_link_status(program_pcn) {
+                panic!("{}", gl.get_program_info_log(program_pcn));
+            }
+            for shader in shaders {
+                gl.detach_shader(program_pcn, shader);
+                gl.delete_shader(shader);
+            }
+            gl.use_program(Some(program_pcn));
         }
 
 
@@ -191,18 +225,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let cube = Elemesh::new(&gl, test_cube_vertex_buffer, test_cube_index_buffer);
 
-        let plane_s = 10000.0;
-        let plane_h = 0.1;
+        let plane_s = 1000.0;
+        let plane_h = 1.0;
 
         // sky plane void plane
         let plane_verts = vec![
-            -plane_s, plane_h, -plane_s,
+            plane_s, plane_h, plane_s,
             0.4, 0.4, 0.7,
 
             plane_s, plane_h, -plane_s,
             0.4, 0.4, 0.7,
 
-            plane_s, plane_h, plane_s,
+
+            -plane_s, plane_h, -plane_s,
             0.4, 0.4, 0.7,
 
             -plane_s, plane_h, plane_s,
@@ -230,7 +265,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let plane = Elemesh::new(&gl, plane_verts, plane_idxs);
 
 
-        let mut camera_pos = Vec3::new(0.0, 0.0, -5.0);
+
+        let mut camera_pos = Vec3::new(0.0, height_hell(0.0, 0.0, false) + 3.0, 0.0);
         let mut camera_dir = Vec3::new(0.0, 0.0, 1.0);
         let camera_up = Vec3::new(0.0, 1.0, 0.0);
         let mut camera_pitch = 0.0f32;
@@ -239,8 +275,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let mut held_keys: HashSet<glutin::event::VirtualKeyCode> = HashSet::new();
         let mut dt = 1.0f64 / 60f64;
-
-        println!("about to loop");
 
         use glutin::event::{Event, WindowEvent};
         use glutin::event_loop::ControlFlow;
@@ -251,7 +285,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             *control_flow = ControlFlow::Poll;
 
             let mut cleanup = || {
-                gl.delete_program(program);
+                gl.delete_program(program_pc);
+                gl.delete_program(program_pcn);
                 *control_flow = ControlFlow::Exit;
             };
 
@@ -270,7 +305,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new(window_x as i32, window_y as i32));
 
-                    let speed = 32.0f32;
+                    let speed = 128.0f32;
                     if held_keys.contains(&glutin::event::VirtualKeyCode::W) {
                         let movt_dir = Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize();
                         camera_pos += speed*dt as f32*movt_dir;
@@ -294,27 +329,40 @@ fn main() -> Result<(), Box<dyn Error>> {
                         camera_pos.y += -speed*dt as f32;
                     }
 
+                    println!("camera dir: {:.2}{:.2}{:.2}", camera_dir.x, camera_dir.y, camera_dir.z);
+
                     chunk_manager.treadmill(&gl, kmath::Vec3{x:camera_pos.x, y:camera_pos.y, z:camera_pos.z});
+                    chunk_manager.generate_chunks(12, &gl);
 
                     // draw
                     gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
 
-                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "projection").as_ref(),
+                    gl.use_program(Some(program_pc));
+
+
+                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pc, "projection").as_ref(),
                     false, &proj.to_cols_array());
 
                     let view_planes = Mat4::look_at_lh(Vec3::new(0.0, 0.0, 0.0), camera_dir, camera_up);
-                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "view").as_ref(),
+                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pc, "view").as_ref(),
                     false, &view_planes.to_cols_array());
                     
                     plane.draw(&gl);
                     gl.clear(glow::DEPTH_BUFFER_BIT);
                     
                     let view = Mat4::look_at_lh(camera_pos, camera_pos + camera_dir, camera_up);
-                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program, "view").as_ref(),
+                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pc, "view").as_ref(),
                         false, &view.to_cols_array());
 
-
                     cube.draw(&gl);
+                    
+
+                    gl.use_program(Some(program_pcn));
+                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pcn, "projection").as_ref(),
+                    false, &proj.to_cols_array());
+                    gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pcn, "view").as_ref(),
+                        false, &view.to_cols_array());
+
                     chunk_manager.draw(&gl);
 
                     window.swap_buffers().unwrap();
@@ -329,6 +377,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     } else {
                         dt = delta;
                     }
+                    window.window().set_title(&format!("RustVox | {:.2}ms", delta*1000.0));
                 }
 
                 Event::DeviceEvent {device_id: _, event: glutin::event::DeviceEvent::Motion {axis, value}} => {

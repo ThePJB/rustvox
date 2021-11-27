@@ -20,8 +20,12 @@ pub fn khash_float2(seed: u32, x: f32, y: f32) -> u32 {
 }
 
 // 0..1
-fn f322(x: u32, y: u32, seed: u32) -> f32 {
+pub fn khash_2float(x: u32, y: u32, seed: u32) -> f32 {
     khash(x + y * 0xA341316C + seed * 0xF73DB187) as f32 / std::u32::MAX as f32
+}
+// 0..1
+pub fn khash_3float(x: u32, y: u32, z: u32, seed: u32) -> f32 {
+    khash(x + y * 0xA341316C + seed * 0xF73DB187 + z * 0x412439CC) as f32 / std::u32::MAX as f32
 }
 
 fn lerp(a: f32, b: f32, t: f32) -> f32 {

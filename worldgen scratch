@@ -1,0 +1,48 @@
+
+pub fn height(x: f32, z: f32) -> f32 {
+    let lf = 500.0 * grad2_isotropic(0.001 * x, 0.001 * z, 420) - 250.0;
+    let initial = 500.0 * fgrad2_isotropic(0.005 * x as f32, 0.005 * z as f32, 69) - 250.0;
+
+    let squish_begin = SEA_LEVEL_F32 - 5.0;
+    let squish_end =  SEA_LEVEL_F32 + 50.0;
+
+    let squish_factor = 0.25;
+
+    // these are good parameters to throw in
+    // have a base height thats quite unaffected etc
+
+    let squished = if initial > squish_begin && initial < squish_end {
+        squish_begin + (initial - squish_begin) * squish_factor
+    } else {
+        squish_begin + (squish_end - squish_begin) * squish_factor + (initial - squish_end)
+    };
+    squished + lf // good or bad to break da rules, like actual sand squish seems smart
+}
+
+
+accidentally made really cool coves
+fixed it into this (low side of squishing was getting oblierated)
+pub fn height(x: f32, z: f32, debug: bool) -> f32 {
+    let lf = 500.0 * grad2_isotropic(0.001 * x, 0.001 * z, 420) - 250.0;
+    let initial = 500.0 * fgrad2_isotropic(0.005 * x as f32, 0.005 * z as f32, 69) - 250.0;
+
+    let squish_begin = SEA_LEVEL_F32 - 5.0;
+    let squish_end =  SEA_LEVEL_F32 + 50.0;
+
+    let squish_factor = 0.25;
+
+    // these are good parameters to throw in
+    // have a base height thats quite unaffected etc
+
+    let squished = if initial < squish_begin{
+        initial
+    } else if initial < squish_end {
+        squish_begin + (initial - squish_begin) * squish_factor
+    } else {
+        squish_begin + (squish_end - squish_begin) * squish_factor + (initial - squish_end)
+    };
+    if debug {
+        println!("x: {} z: {} lf: {} initial: {} squished: {}", x, z, lf, initial, squished);
+    }
+    squished + lf // good or bad to break da rules, like actual sand squish seems smart
+}
