@@ -6,6 +6,7 @@ mod kmath;
 mod krand;
 mod priority_queue;
 mod world_gen;
+mod settings;
 
 use glow::*;
 use glam::{Vec3, Mat4};
@@ -17,6 +18,8 @@ use std::f32::consts::PI;
 use chunk::*;
 use chunk_manager::*;
 use elemesh::*;
+use world_gen::*;
+use settings::*;
 
 /*
 Coordinate system:
@@ -124,7 +127,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
         // game stuff
-        let mut chunk_manager = ChunkManager::new(&gl);
+        let gen = GenNormalCliffy::new(69);
+
+        let mut chunk_manager = ChunkManager::new(&gl, &gen);
 
         let test_cube_vertex_buffer = vec![
             -1.0f32, 1.0, 1.0,
@@ -266,7 +271,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
 
-        let mut camera_pos = Vec3::new(0.0, height_hell(0.0, 0.0, false) + 3.0, 0.0);
+        let mut camera_pos = Vec3::new(0.0, gen.height(0.0, 0.0) + 3.0, 0.0);
         let mut camera_dir = Vec3::new(0.0, 0.0, 1.0);
         let camera_up = Vec3::new(0.0, 1.0, 0.0);
         let mut camera_pitch = 0.0f32;
@@ -331,8 +336,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     println!("camera dir: {:.2}{:.2}{:.2}", camera_dir.x, camera_dir.y, camera_dir.z);
 
-                    chunk_manager.treadmill(&gl, kmath::Vec3{x:camera_pos.x, y:camera_pos.y, z:camera_pos.z});
-                    chunk_manager.generate_chunks(12, &gl);
+                    chunk_manager.treadmill(&gl, kmath::Vec3{x:camera_pos.x, y:camera_pos.y, z:camera_pos.z}, &gen);
+                    //chunk_manager.generate_chunks(CHUNKS_PER_FRAME, &gl, &gen);
 
                     // draw
                     gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);

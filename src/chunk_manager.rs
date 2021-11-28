@@ -1,9 +1,15 @@
 use std::collections::HashMap;
 
 use glow::*;
+use glam::Mat4;
 use crate::chunk::*;
 use crate::kmath::*;
 use crate::priority_queue::*;
+use crate::world_gen::*;
+use crate::settings::*;
+use crossbeam::*;
+use crossbeam_channel::*;
+use std::collections::HashSet;
 
 /*
 Responsibilities:
@@ -43,29 +49,54 @@ impl ChunkCoordinates {
 
 pub struct ChunkManager {
     chunk_map: HashMap<ChunkCoordinates, Chunk>,
-    chunks_to_generate: PriorityQueue<f32, ChunkCoordinates>,
+    //chunks_to_generate: PriorityQueue<f32, ChunkCoordinates>,
+
+    job_sender: Sender<ChunkCoordinates>,
+    chunk_receiver: Receiver<ChunkData>,    // might be doing unnecessary copying
+    loading: HashSet<ChunkCoordinates>,
 }
 
+const N_WORKERS: usize = 6;
 impl ChunkManager {
-    pub fn new(gl: &glow::Context) -> ChunkManager {
+    pub fn new(gl: &glow::Context, gen: &impl LevelGenerator) -> ChunkManager {
         let mut chunk_map = HashMap::new();
+
+        let (job_sender, job_receiver) = unbounded();
+        let (chunk_sender, chunk_receiver) = unbounded();
+
+        for i in 0..N_WORKERS {
+            let job_receiver =  job_receiver.clone();
+            let chunk_sender = chunk_sender.clone();
+            let gen = gen.clone();
+            std::thread::spawn(move || {
+                let thread_gen = gen.clone();
+
+                loop {
+                    let job = job_receiver.recv().unwrap();
+                    let chunk_data = ChunkData::new(job, &thread_gen);
+                    chunk_sender.send(chunk_data).unwrap();
+                }
+            });
+        }
 
         ChunkManager {
             chunk_map,
-            chunks_to_generate: PriorityQueue::new(),
+            job_sender,
+            chunk_receiver,
+            loading: HashSet::new(),
         }
     }
 
     pub fn draw(&self, gl: &glow::Context) {
         // todo, sort or whatever
 
-        for (_, chunk) in self.chunk_map.iter() {
+        for (chunk_coords, chunk) in self.chunk_map.iter() {
+
             chunk.draw(gl);
         }
     }
 
-    pub fn treadmill(&mut self, gl: &glow::Context, pos: Vec3) {
-        let chunk_radius = 30;
+    pub fn treadmill(&mut self, gl: &glow::Context, pos: Vec3, gen: &impl LevelGenerator) {
         let in_chunk = ChunkCoordinates::containing_world_pos(pos);
 
         self.chunk_map.retain(|cc, chunk| {
@@ -73,31 +104,39 @@ impl ChunkManager {
             let y = cc.y;
             let z = cc.z;
 
-            let keep =(x - in_chunk.x).abs() <= chunk_radius &&
-            (y - in_chunk.y).abs() <= chunk_radius &&
-            (z - in_chunk.z).abs() <= chunk_radius;
+            let keep =(x - in_chunk.x).abs() <= CHUNK_RADIUS &&
+            (y - in_chunk.y).abs() <= CHUNK_RADIUS &&
+            (z - in_chunk.z).abs() <= CHUNK_RADIUS;
 
             if !keep {
-                self.chunks_to_generate.remove(*cc);
+                //self.chunks_to_generate.remove(*cc);
+                // yeah dunno if i ever tested this
+                // may want to mark a chunk as currently loading to not duplicate postings
+                // or you could send one at a time or something
                 chunk.destroy(gl);
             }
 
             keep
         });
 
-        for i in -chunk_radius..=chunk_radius {
-            for j in -chunk_radius/3..=chunk_radius/3 {
-                for k in -chunk_radius..=chunk_radius {
+        // post jobs
+        for i in -CHUNK_RADIUS..=CHUNK_RADIUS {
+            for j in -CHUNK_RADIUS/3..=CHUNK_RADIUS/3 {
+                for k in -CHUNK_RADIUS..=CHUNK_RADIUS {
                     let x = in_chunk.x + i;
                     let y = in_chunk.y + j;
                     let z = in_chunk.z + k;
 
                     let cc = ChunkCoordinates {x,y,z};
 
-                    if !self.chunk_map.contains_key(&cc) {
+                    if !self.chunk_map.contains_key(&cc) && !self.loading.contains(&cc) {
+                        self.job_sender.send(cc);
+                        self.loading.insert(cc);
+
+                        /*
                         let priority = {
                             let center = cc.center();
-                            let height = height_hell(center.x, center.z, false).max(SEA_LEVEL_F32);
+                            let height = gen.height(center.x, center.z).max(SEA_LEVEL_F32);
                             let distance = (pos - cc.center()).magnitude();
                             if (height - center.y).abs() < 31.0 {
                                 distance / 10.0
@@ -106,16 +145,31 @@ impl ChunkManager {
                             }
                         };
                         self.chunks_to_generate.set(priority, cc);
+                        */
                     }
                 }
             }
         }
+
+        // reap chunks
+        while let Ok(chunk_data) = self.chunk_receiver.try_recv() {
+            let mut new_chunk = Chunk::new(gl, chunk_data);
+            new_chunk.generate_mesh(gl);
+            self.loading.remove(&new_chunk.data.cc);
+            self.chunk_map.insert(new_chunk.data.cc, new_chunk);
+        }
     }
 
-    pub fn generate_chunks(&mut self, max: i32, gl: &glow::Context) {
+    /*
+    OK how are we doing this, is shit getting copied around or just references?
+    */
+
+    /*
+    pub fn generate_chunks(&mut self, max: i32, gl: &glow::Context, gen: &impl LevelGenerator) {
         for i in 0..max {
             if let Some(job) = self.chunks_to_generate.remove_min() {
-                let mut new_chunk = Chunk::new(gl, job);
+                let mut new_chunk_data = ChunkData::new(job, gen);
+                let mut new_chunk = Chunk::new(gl, new_chunk_data);
                 new_chunk.generate_mesh(gl);
                 self.chunk_map.insert(job, new_chunk);
             } else {
@@ -123,5 +177,6 @@ impl ChunkManager {
             }
         }
     }
+    */
 
 }

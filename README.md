@@ -110,3 +110,20 @@ so yeah big craters, try use contours more
 
 floating islands
 cool cavern layers
+
+realms you can only enter at certain times eg moon land only during certain phases
+crater lake moon thing
+
+steamy geothermal crater lake land
+
+
+well, frustum cull wasnt working
+maybe to it geometrically: 4 planes and object is kept if any part of it is inside said planes, cbf right now migth try greedy meshing
+
+multithreading world gen is probably the optimization im going to feel the most.. and keeping it off main thread
+requires splitting chunkdata from gpu stuff
+
+have nice behaviour on windows loses focus
+
+now mesh time is the killer and gpu rendering is the bottleneck
+can also do sorting
