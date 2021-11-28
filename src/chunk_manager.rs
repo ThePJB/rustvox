@@ -91,8 +91,9 @@ impl ChunkManager {
         // todo, sort or whatever
 
         for (chunk_coords, chunk) in self.chunk_map.iter() {
-
-            chunk.draw(gl);
+            if let Some(m) = &chunk.opaque_mesh {
+                m.draw(gl);
+            }
         }
     }
 
@@ -151,12 +152,17 @@ impl ChunkManager {
             }
         }
 
+        let mut chunks_this_frame = 0;
         // reap chunks
         while let Ok(chunk_data) = self.chunk_receiver.try_recv() {
-            let mut new_chunk = Chunk::new(gl, chunk_data);
-            new_chunk.generate_mesh(gl);
+            let new_chunk = Chunk::new(gl, chunk_data);
+            // new_chunk.generate_mesh(gl);
             self.loading.remove(&new_chunk.data.cc);
             self.chunk_map.insert(new_chunk.data.cc, new_chunk);
+            chunks_this_frame += 1;
+            if chunks_this_frame > CHUNKS_PER_FRAME {
+                break;
+            }
         }
     }
 

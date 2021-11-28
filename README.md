@@ -127,3 +127,7 @@ have nice behaviour on windows loses focus
 
 now mesh time is the killer and gpu rendering is the bottleneck
 can also do sorting
+still dont know if its doing huge copies or not
+
+meshing water separately
+trees

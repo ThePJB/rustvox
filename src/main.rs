@@ -334,8 +334,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         camera_pos.y += -speed*dt as f32;
                     }
 
-                    println!("camera dir: {:.2}{:.2}{:.2}", camera_dir.x, camera_dir.y, camera_dir.z);
-
                     chunk_manager.treadmill(&gl, kmath::Vec3{x:camera_pos.x, y:camera_pos.y, z:camera_pos.z}, &gen);
                     //chunk_manager.generate_chunks(CHUNKS_PER_FRAME, &gl, &gen);
 
