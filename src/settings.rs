@@ -1,6 +1,6 @@
 
-pub const CHUNK_RADIUS: i32 = 12;
-pub const CHUNKS_PER_FRAME: i32 = 80;
+pub const CHUNK_RADIUS: i32 = 10;
+pub const CHUNKS_PER_FRAME: i32 = 40;
 
 pub const S: usize = 32;
 pub const S_F32: f32 = 32.0;

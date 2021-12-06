@@ -58,6 +58,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
         gl.enable(DEPTH_TEST);
         gl.enable(CULL_FACE);
+        gl.clear_color(0.0, 0.0, 0.0, 0.0);
+        gl.blend_func(SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
+        gl.enable(BLEND);
         gl.debug_message_callback(|a, b, c, d, msg| {
             println!("{} {} {} {} msg: {}", a, b, c, d, msg);
         });
@@ -127,7 +130,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
         // game stuff
-        let gen = GenNormalCliffy::new(69);
+        let gen = GenNormalCliffy::new(70);
 
         let mut chunk_manager = ChunkManager::new(&gl, &gen);
 
@@ -284,6 +287,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         use glutin::event::{Event, WindowEvent};
         use glutin::event_loop::ControlFlow;
 
+        let mut frame = 0;
+
+        let mut prev_frame_start = SystemTime::now();
+        let mut curr_frame_start = SystemTime::now();
+
+
         event_loop.run(move |event, _, control_flow| {
 
 
@@ -304,9 +313,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                     cleanup();
                 },
 
+                Event::NewEvents(_) => {
+                    prev_frame_start = curr_frame_start;
+                    curr_frame_start = SystemTime::now();
+                    dt = curr_frame_start.duration_since(prev_frame_start).unwrap().as_secs_f64();
+                    frame += 1;
+                }
+
                 Event::MainEventsCleared => {
                     // update
-                    let loop_start = SystemTime::now();
+                    let update_start = SystemTime::now();
 
                     window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new(window_x as i32, window_y as i32));
 
@@ -334,9 +350,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                         camera_pos.y += -speed*dt as f32;
                     }
 
+                    let treadmill = SystemTime::now();
+
+
                     chunk_manager.treadmill(&gl, kmath::Vec3{x:camera_pos.x, y:camera_pos.y, z:camera_pos.z}, &gen);
                     //chunk_manager.generate_chunks(CHUNKS_PER_FRAME, &gl, &gen);
 
+                    let draw = SystemTime::now();
                     // draw
                     gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
 
@@ -366,12 +386,44 @@ fn main() -> Result<(), Box<dyn Error>> {
                     gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pcn, "view").as_ref(),
                         false, &view.to_cols_array());
 
-                    chunk_manager.draw(&gl);
-
+                    chunk_manager.draw(&gl, kmath::Vec3::new(camera_pos.x, camera_pos.y, camera_pos.z));
+                    
+                    let finish_draw = SystemTime::now();
+                    
                     window.swap_buffers().unwrap();
+                    
+                    let finish_swap_buffers = SystemTime::now();
 
-                    let loop_end = SystemTime::now();
-                    let delta = loop_end.duration_since(loop_start).unwrap().as_secs_f64();
+                    let t_events = update_start.duration_since(curr_frame_start).unwrap().as_secs_f64();
+                    let t_update = treadmill.duration_since(update_start).unwrap().as_secs_f64();
+                    let t_treadmill = draw.duration_since(treadmill).unwrap().as_secs_f64();
+                    let t_draw = finish_draw.duration_since(draw).unwrap().as_secs_f64();
+                    let t_swap = finish_swap_buffers.duration_since(finish_draw).unwrap().as_secs_f64();
+
+                    let (omesh, tmesh) = chunk_manager.chunk_map.iter().map(|(key, val)| (if val.opaque_mesh.is_some() {
+                        1
+                    } else {
+                        0
+                    }, if val.transparent_mesh.is_some() {
+                        1
+                    } else {
+                        0
+                    })).fold((0,0), |(ao, at), (o, t)| (ao + o, at + t));
+
+                    let (otri, ttri) = chunk_manager.chunk_map.iter().map(|(key, val)| (if val.opaque_mesh.is_some() {
+                        val.opaque_mesh.as_ref().unwrap().num_triangles
+                    } else {
+                        0
+                    }, if val.transparent_mesh.is_some() {
+                        val.transparent_mesh.as_ref().unwrap().num_triangles
+                    } else {
+                        0
+                    })).fold((0,0), |(ao, at), (o, t)| (ao + o, at + t));
+
+                    println!("events: {:.2} update: {:.2} treadmill: {:.2}, draw: {:.2} swap: {:.2} omesh: {} kotri: {} tmesh: {} kttri:{}", t_events*1000.0, t_update*1000.0, t_treadmill*1000.0, t_draw*1000.0, t_swap*1000.0, omesh, otri/1000, tmesh, ttri/1000);
+
+                    /*
+                    let delta = loop_end.duration_since(pr).unwrap().as_secs_f64();
                     let frame_cap = 1.0 / 60.0;
                     // not sure if this handles vsync ay
                     if delta < frame_cap {
@@ -380,7 +432,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     } else {
                         dt = delta;
                     }
-                    window.window().set_title(&format!("RustVox | {:.2}ms", delta*1000.0));
+                    */
+                    window.window().set_title(&format!("RustVox | {:.2}ms", dt*1000.0));
                 }
 
                 Event::DeviceEvent {device_id: _, event: glutin::event::DeviceEvent::Motion {axis, value}} => {

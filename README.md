@@ -131,3 +131,18 @@ still dont know if its doing huge copies or not
 
 meshing water separately
 trees
+could have translucent blocks: opaque if N deep... like a certain crystal or something
+
+could use a different shader and not have opacity be sent to gpu for solid blocks...
+
+we could sort chunks before we generate
+
+transparency still a bit cooked, probably very cooked if water is in the wrong spot
+need to sort inside chunk too probbaly
+
+hmm pixely displacement or bump mapping for nearby geometry looks pretty comfy, see voxelnauts
+
+
+hmmmm SVO??
+
+maybe do trees

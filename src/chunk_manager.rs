@@ -48,7 +48,7 @@ impl ChunkCoordinates {
 }
 
 pub struct ChunkManager {
-    chunk_map: HashMap<ChunkCoordinates, Chunk>,
+    pub chunk_map: HashMap<ChunkCoordinates, Chunk>,
     //chunks_to_generate: PriorityQueue<f32, ChunkCoordinates>,
 
     job_sender: Sender<ChunkCoordinates>,
@@ -87,11 +87,23 @@ impl ChunkManager {
         }
     }
 
-    pub fn draw(&self, gl: &glow::Context) {
+    pub fn draw(&self, gl: &glow::Context, pos: Vec3) {
         // todo, sort or whatever
+        let mut draw_list: Vec<&Chunk> = self.chunk_map.iter().map(|x| x.1).collect();
+        draw_list.sort_unstable_by(|chunk1, chunk2| {
+            let dist1 = (chunk1.data.cc.center() - pos).square_distance();
+            let dist2 = (chunk2.data.cc.center() - pos).square_distance();
+            dist1.partial_cmp(&dist2).unwrap()
+        });
 
-        for (chunk_coords, chunk) in self.chunk_map.iter() {
+        for chunk in draw_list.iter().rev() {
             if let Some(m) = &chunk.opaque_mesh {
+                m.draw(gl);
+            }
+        }
+
+        for chunk in draw_list.iter() {
+            if let Some(m) = &chunk.transparent_mesh {
                 m.draw(gl);
             }
         }
@@ -106,14 +118,10 @@ impl ChunkManager {
             let z = cc.z;
 
             let keep =(x - in_chunk.x).abs() <= CHUNK_RADIUS &&
-            (y - in_chunk.y).abs() <= CHUNK_RADIUS &&
+            (y - in_chunk.y).abs() <= CHUNK_RADIUS/3 &&
             (z - in_chunk.z).abs() <= CHUNK_RADIUS;
 
             if !keep {
-                //self.chunks_to_generate.remove(*cc);
-                // yeah dunno if i ever tested this
-                // may want to mark a chunk as currently loading to not duplicate postings
-                // or you could send one at a time or something
                 chunk.destroy(gl);
             }
 

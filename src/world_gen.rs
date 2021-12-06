@@ -7,6 +7,10 @@ lets give this trait thing a try
 i wonder if some fancy combinator is possible... sounds slow lol
 */
 
+fn slow_stop(t: f32) -> f32 {
+    1.0 - (1.0 - t)*(1.0 - t)
+}
+
 pub const SEA_LEVEL_F32: f32 = 0.0;
 pub const SEA_LEVEL_I32: i32 = 0;
 
@@ -25,6 +29,25 @@ impl GenNormalCliffy {
     pub fn new(seed: u32) -> GenNormalCliffy {
         GenNormalCliffy {seed}
     }
+
+
+    fn block_underground(&self, x: i32, y: i32, z: i32) -> Block {
+        let cavern1_floor_noise = fgrad2_isotropic(0.02 * x as f32, 0.02 * z as f32, self.seed * 23492349);
+        let cavern1_ceiling_noise = fgrad2_isotropic(0.02 * x as f32, 0.02 * z as f32, self.seed * 93471753);
+        let cavern1_sep = fgrad2_isotropic(0.01 * x as f32, 0.01 * z as f32, self.seed * 93471753);
+
+        let floor = (-120.0 + cavern1_floor_noise * 60.0) as i32;
+        let ceiling = (-120.0 + cavern1_ceiling_noise * 60.0) as i32 + (50.0 * cavern1_sep) as i32;
+
+        if y >= ceiling || y < floor {
+            Block::Stone
+        } else if y == floor {
+            Block::BlueFungus
+        } else {
+            Block::Air
+        }
+    }
+
 }
 
 impl LevelGenerator for GenNormalCliffy {
@@ -38,6 +61,7 @@ impl LevelGenerator for GenNormalCliffy {
         let squish_end =  SEA_LEVEL_F32 + 50.0;
     
         let squish_factor = 0.25;
+
     
         // these are good parameters to throw in
         // have a base height thats quite unaffected etc
@@ -61,7 +85,8 @@ impl LevelGenerator for GenNormalCliffy {
         } else {
             squish_begin + (squish_end - squish_begin) * squish_factor + (initial - squish_end)
         };
-        squished + lf + cliff // good or bad to break da rules, like actual sand squish seems smart
+        let height = squished + lf + cliff; // good or bad to break da rules, like actual sand squish seems smart
+        height// would like to squish beaches but what can ya do
     }
 
     fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
@@ -78,7 +103,7 @@ impl LevelGenerator for GenNormalCliffy {
     
     
                     let block = if y > height {
-                        if y > SEA_LEVEL_I32 {
+                        if y >= SEA_LEVEL_I32 {
                             Block::Air
                         } else {
                             Block::Water
@@ -90,7 +115,7 @@ impl LevelGenerator for GenNormalCliffy {
                     } else if y > height - 3 {
                         Block::Dirt
                     } else if y <= height - 3 {
-                        Block::Stone
+                        self.block_underground(x, y, z)
                     } else {
                         Block::Wat
                     };
