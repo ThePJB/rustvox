@@ -37,7 +37,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut window_x = 1600.0;
     let mut window_y = 900.0;
-    let proj = Mat4::perspective_lh(0.9, 16.0/9.0, 0.01, 1000.0);
+
+    let fovx = 0.9;
+    let a = window_x / window_y;
+    let fovy = fovx / a;
+
+    let proj = Mat4::perspective_lh(fovx, 16.0/9.0, 0.01, 1000.0);
+
 
     println!("proj: {}", proj);
 
@@ -386,7 +392,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                     gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pcn, "view").as_ref(),
                         false, &view.to_cols_array());
 
-                    chunk_manager.draw(&gl, kmath::Vec3::new(camera_pos.x, camera_pos.y, camera_pos.z));
+                    let camera_right = camera_dir.cross(camera_up).normalize();
+                    chunk_manager.draw(&gl, 
+                        kmath::Vec3::new(camera_pos.x, camera_pos.y, camera_pos.z), 
+                        kmath::Vec3::new(camera_dir.x, camera_dir.y, camera_dir.z),
+                        kmath::Vec3::new(camera_up.x, camera_up.y, camera_up.z),
+                        kmath::Vec3::new(camera_right.x, camera_right.y, camera_right.z),
+                        fovx, fovy
+                    );
                     
                     let finish_draw = SystemTime::now();
                     
@@ -420,7 +433,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         0
                     })).fold((0,0), |(ao, at), (o, t)| (ao + o, at + t));
 
-                    println!("events: {:.2} update: {:.2} treadmill: {:.2}, draw: {:.2} swap: {:.2} omesh: {} kotri: {} tmesh: {} kttri:{}", t_events*1000.0, t_update*1000.0, t_treadmill*1000.0, t_draw*1000.0, t_swap*1000.0, omesh, otri/1000, tmesh, ttri/1000);
+                    // println!("events: {:.2} update: {:.2} treadmill: {:.2}, draw: {:.2} swap: {:.2} omesh: {} kotri: {} tmesh: {} kttri:{}", t_events*1000.0, t_update*1000.0, t_treadmill*1000.0, t_draw*1000.0, t_swap*1000.0, omesh, otri/1000, tmesh, ttri/1000);
 
                     /*
                     let delta = loop_end.duration_since(pr).unwrap().as_secs_f64();

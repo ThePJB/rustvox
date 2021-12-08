@@ -45,6 +45,23 @@ impl ChunkCoordinates {
             self.z as f32 * S_F32 + HALF_S_F32,
         )
     }
+
+    pub fn corners(&self) -> [Vec3; 8] {
+        let x = self.x as f32 * S_F32;
+        let y = self.y as f32 * S_F32;
+        let z = self.z as f32 * S_F32;
+        
+        [
+            Vec3::new(x,y,z),
+            Vec3::new(x,y,z+S_F32),
+            Vec3::new(x,y+S_F32,z),
+            Vec3::new(x,y+S_F32,z+S_F32),
+            Vec3::new(x+S_F32,y,z),
+            Vec3::new(x+S_F32,y,z+S_F32),
+            Vec3::new(x+S_F32,y+S_F32,z),
+            Vec3::new(x+S_F32,y+S_F32,z+S_F32),
+        ]
+    }
 }
 
 pub struct ChunkManager {
@@ -87,9 +104,36 @@ impl ChunkManager {
         }
     }
 
-    pub fn draw(&self, gl: &glow::Context, pos: Vec3) {
-        // todo, sort or whatever
-        let mut draw_list: Vec<&Chunk> = self.chunk_map.iter().map(|x| x.1).collect();
+    pub fn draw(&self, gl: &glow::Context, pos: Vec3, look: Vec3, up: Vec3, right: Vec3, fovx: f32, fovy: f32) {
+
+        println!("pos: {}\nlook: {}\n up: {}\n right: {}\n fovx: {}\n fovy: {}", pos, look, up, right, fovx, fovy);
+
+        let vp_up = look.cross(right);
+
+        let  nbot = -look.rotate_about_vec3(right, -fovy).cross(right).normalize();
+        let  ntop = look.rotate_about_vec3(right, fovy).cross(right).normalize();
+        let  nleft = -look.rotate_about_vec3(vp_up, -fovx).cross(vp_up).normalize();
+        let  nright = look.rotate_about_vec3(vp_up, fovx).cross(vp_up).normalize();
+
+        let test_point = |p: Vec3| {
+            nbot.dot(p - pos) > 0.0 &&
+            ntop.dot(p - pos) > 0.0 &&
+            nleft.dot(p - pos) > 0.0 &&
+            nright.dot(p - pos) > 0.0
+        };
+
+        let mut draw_list: Vec<&Chunk> = self.chunk_map.iter().filter(|(cc, c)| {
+            let corners = cc.corners();
+            for corner in corners {
+                if test_point(corner) {
+                    return true;
+                }
+            }
+            return false;
+        }).map(|x| x.1).collect();
+
+        // println!("draw {} / {}", draw_list.len(), self.chunk_map.len());
+        
         draw_list.sort_unstable_by(|chunk1, chunk2| {
             let dist1 = (chunk1.data.cc.center() - pos).square_distance();
             let dist2 = (chunk2.data.cc.center() - pos).square_distance();

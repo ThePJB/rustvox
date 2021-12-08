@@ -14,6 +14,17 @@ impl Vec3 {
     pub fn normalize(&self) -> Vec3 { self.div_scalar(self.magnitude()) }
     pub fn lerp(&self, other: Vec3, t: f32) -> Vec3 { Vec3::new(self.x*(1.0-t) + other.x*(t), self.y*(1.0-t) + other.y*(t), self.z*(1.0-t) + other.z*(t)) }
     pub fn dist(&self, other: Vec3) -> f32 {(*self - other).magnitude().sqrt()}
+    pub fn dot(&self, other: Vec3) -> f32 {self.x*other.x + self.y*other.y + self.z*other.z} // is squ dist lol
+    pub fn cross(&self, other: Vec3) -> Vec3 {
+        Vec3::new(
+            self.y*other.z - self.z*other.y,
+            self.z*other.x - self.x*other.z,
+            self.x*other.y - self.y*other.x,
+        )
+    }
+    pub fn rotate_about_vec3(&self, axis: Vec3, theta: f32) -> Vec3 {
+        *self*theta.cos() + (axis.cross(*self)*theta.sin()) + axis * (axis.dot(*self)*(1.0 - theta.cos()))
+    }
 }
 
 impl std::ops::Sub<Vec3> for Vec3 {
@@ -61,5 +72,13 @@ impl std::ops::Neg for Vec3 {
 
     fn neg(self) -> Vec3 {
         self.mul_scalar(-1.0)
+    }
+}
+
+impl std::fmt::Display for Vec3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let decimals = f.precision().unwrap_or(2);
+        let string = format!("[{:.*}, {:.*}, {:.*}]", decimals, self.x, decimals, self.y, decimals, self.z);
+        f.pad_integral(true, "", &string)
     }
 }

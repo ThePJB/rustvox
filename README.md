@@ -146,3 +146,8 @@ hmm pixely displacement or bump mapping for nearby geometry looks pretty comfy, 
 hmmmm SVO??
 
 maybe do trees
+
+
+cull by facing direction smart!
+one mesh per direction
+frustum culling down is bugged

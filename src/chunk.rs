@@ -770,6 +770,402 @@ impl ChunkData {
 
         (vertex_buffer, element_buffer)
     }
+    
+    fn transparent_buffers_opt(&self) -> (Vec<f32>, Vec<u32>) {
+        let mut vertex_buffer = Vec::new();
+        let mut element_buffer = Vec::new();
+
+        let mut index: u32 = 0;
+
+        let mut push_quad = |verts: [Vec3; 4], normal: Vec3, block: Block, index: u32| {
+            let colour = match block {
+                Block::Water => {[0.0, 0.0, 1.0, 0.5]},
+                _ => {panic!("unreachable")},
+            };
+
+            for idx in 0..4 {
+                vertex_buffer.push(verts[idx].x);
+                vertex_buffer.push(verts[idx].y);
+                vertex_buffer.push(verts[idx].z);
+    
+                vertex_buffer.push(colour[0]);
+                vertex_buffer.push(colour[1]);
+                vertex_buffer.push(colour[2]);
+                vertex_buffer.push(colour[3]);
+    
+                vertex_buffer.push(normal.x);
+                vertex_buffer.push(normal.y);
+                vertex_buffer.push(normal.z);
+            }
+
+            element_buffer.push(index);
+            element_buffer.push(index+1);
+            element_buffer.push(index+2);
+            element_buffer.push(index);
+            element_buffer.push(index+2);
+            element_buffer.push(index+3);
+        };
+
+        {  
+            // +Z
+            let face = 0;
+            let normal = Vec3::new(0.0, 0.0, 1.0);
+            for j in 0..S {
+                for k in 0..S {
+                    let mut greed_size = 1;
+                    for i in 0..S {
+                        let idx = k*S + j*S*S + i;
+
+                        if self.blocks[idx] != Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let can_greed = i < S-1 && self.blocks[idx + 1] == self.blocks[idx] && !(k < S-1 && self.blocks[idx + S+1] == Block::Water);
+                        // let can_greed = false;
+
+                        if can_greed {
+                            greed_size += 1;
+                            continue;
+                        }   // else actually mesh
+
+                        if k < S-1 && self.blocks[idx + S] == Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let verts = [
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 0*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 0*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 0*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 1*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 1*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 1*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 2*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 2*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 2*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 3*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 3*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 3*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                        ];
+                        
+                        push_quad(verts, normal, self.blocks[idx], index);
+                        index += 4;
+
+                        greed_size = 1;
+                    }
+                }
+            }
+        }
+        {  
+            // -Z
+            let face = 1;
+            let normal = Vec3::new(0.0, 0.0, -1.0);
+            for j in 0..S {
+                for k in 0..S {
+                    let mut greed_size = 1;
+                    for i in 0..S {
+                        let idx = k*S + j*S*S + i;
+
+                        if self.blocks[idx] != Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let can_greed = i < S-1 && self.blocks[idx + 1] == self.blocks[idx] && !(k > 0 && self.blocks[idx - S+1] == Block::Water);
+                        // let can_greed = false;
+
+                        if can_greed {
+                            greed_size += 1;
+                            continue;
+                        }   // else actually mesh
+
+                        if k > 0 && self.blocks[idx - S] == Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let verts = [
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 0*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 0*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 0*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 1*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 1*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 1*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 2*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 2*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 2*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 3*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 3*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 3*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                        ];
+                        
+                        push_quad(verts, normal, self.blocks[idx], index);
+                        index += 4;
+
+                        greed_size = 1;
+                    }
+                }
+            }
+        }
+        {  
+            // -Y
+            let face = 2;
+            let normal = Vec3::new(0.0, -1.0, 0.0);
+            for j in 0..S {
+                for k in 0..S {
+                    let mut greed_size = 1;
+                    for i in 0..S {
+                        let idx = k*S + j*S*S + i;
+
+                        if self.blocks[idx] != Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let can_greed = i < S-1 && self.blocks[idx + 1] == self.blocks[idx] && !(j > 0 && self.blocks[idx - S*S+1] == Block::Water);
+                        // let can_greed = false;
+
+                        if can_greed {
+                            greed_size += 1;
+                            continue;
+                        }   // else actually mesh
+
+                        if j > 0 && self.blocks[idx - S*S] == Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let verts = [
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 0*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 0*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 0*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 1*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 1*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 1*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 2*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 2*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 2*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 3*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 3*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 3*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                        ];
+                        
+                        push_quad(verts, normal, self.blocks[idx], index);
+                        index += 4;
+
+                        greed_size = 1;
+                    }
+                }
+            }
+        }
+        /*
+
+        {  
+            // +Y
+            let face = 3;
+            let normal = Vec3::new(0.0, 1.0, 0.0);
+            for j in 0..S {
+                for k in 0..S {
+                    let mut greed_size = 1;
+                    for i in 0..S {
+                        let idx = k*S + j*S*S + i;
+
+                        if self.blocks[idx] != Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let can_greed = i < S-1 && self.blocks[idx + 1] == self.blocks[idx] && !(j < S-1 && self.blocks[idx + S*S+1] == Block::Water);
+                        // let can_greed = false;
+
+                        if can_greed {
+                            greed_size += 1;
+                            continue;
+                        }   // else actually mesh
+
+                        if j < S-1 && self.blocks[idx + S*S] == Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let verts = [
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 0*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 0*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 0*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 1*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 1*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 1*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 2*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 2*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 2*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 3*3]*greed_size as f32 + i as f32 - (greed_size-1) as f32 as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 3*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 3*3+2] + k as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                        ];
+                        
+                        push_quad(verts, normal, self.blocks[idx], index);
+                        index += 4;
+
+                        greed_size = 1;
+                    }
+                }
+            }
+        }
+        {  
+            // +X
+            let face = 4;
+            let normal = Vec3::new(1.0, 0.0, 0.0);
+            for j in 0..S {
+                for i in 0..S {
+                let mut greed_size = 1;
+                    for k in 0..S {
+                        let idx = k*S + j*S*S + i;
+
+                        if self.blocks[idx] != Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let can_greed = k < S-1 && self.blocks[idx + S] == self.blocks[idx] && !(i < S-1 && self.blocks[idx + S+1] == Block::Water);
+                        // let can_greed = false;
+
+                        if can_greed {
+                            greed_size += 1;
+                            continue;
+                        }   // else actually mesh
+
+                        if i < S-1 && self.blocks[idx + 1] == Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let verts = [
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 0*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 0*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 0*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 1*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 1*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 1*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 2*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 2*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 2*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 3*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 3*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 3*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                        ];
+                        
+                        push_quad(verts, normal, self.blocks[idx], index);
+                        index += 4;
+
+                        greed_size = 1;
+                    }
+                }
+            }
+        }
+        {  
+            // -X
+            let face = 5;
+            let normal = Vec3::new(-1.0, 0.0, 0.0);
+            for j in 0..S {
+                for i in 0..S {
+                let mut greed_size = 1;
+                    for k in 0..S {
+                        let idx = k*S + j*S*S + i;
+
+                        if self.blocks[idx] != Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let can_greed = k < S-1 && self.blocks[idx + S] == self.blocks[idx] && !(i > 0 && self.blocks[idx + S-1] == Block::Water);
+                        // let can_greed = false;
+
+                        if can_greed {
+                            greed_size += 1;
+                            continue;
+                        }   // else actually mesh
+
+                        if i > 0 && self.blocks[idx - 1] == Block::Water {
+                            greed_size = 1;
+                            continue;
+                        }
+
+                        let verts = [
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 0*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 0*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 0*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 1*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 1*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 1*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 2*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 2*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 2*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                            Vec3 {
+                                x: CUBE_VERTS[face*12 + 3*3] + i as f32 + S as f32 * self.cc.x as f32,
+                                y: CUBE_VERTS[face*12 + 3*3+1] + j as f32 + S as f32 * self.cc.y as f32,
+                                z: CUBE_VERTS[face*12 + 3*3+2]*greed_size as f32 + k as f32 - (greed_size-1) as f32 + S as f32 * self.cc.z as f32,
+                            }, 
+                        ];
+                        
+                        push_quad(verts, normal, self.blocks[idx], index);
+                        index += 4;
+
+                        greed_size = 1;
+                    }
+                }
+            }
+        }
+        */
+
+        (vertex_buffer, element_buffer)
+    }
 
     fn opaque_buffers(&self) -> (Vec<f32>, Vec<u32>) {
         let mut vertex_buffer = Vec::new();
@@ -930,6 +1326,53 @@ impl ChunkData {
     }
 
     pub fn new_transparent_mesh(&self, gl: &glow::Context) -> Option<ChunkTransparentMesh> {
+        let (vertex_buffer, element_buffer) = self.transparent_buffers_opt();
+
+        let num_triangles = element_buffer.len() as i32;
+        if num_triangles == 0 {
+            return None;
+        }
+
+        let (vao, vbo, ebo) = unsafe {
+            let vao = gl.create_vertex_array().unwrap();
+            let vbo = gl.create_buffer().unwrap();
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+            let ebo = gl.create_buffer().unwrap();
+            gl.bind_vertex_array(Some(vao));
+            let float_size = 4;
+            let total_floats = 3 + 4 + 3;
+            gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, float_size*total_floats, 0);
+            gl.enable_vertex_attrib_array(0);
+            gl.vertex_attrib_pointer_f32(1, 4, glow::FLOAT, false, float_size*total_floats, float_size*3);
+            gl.enable_vertex_attrib_array(1);
+            gl.vertex_attrib_pointer_f32(2, 3, glow::FLOAT, false, float_size*total_floats, float_size*7);
+            gl.enable_vertex_attrib_array(2);
+
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            gl.bind_vertex_array(None);
+            
+            (vao, vbo, ebo)
+        };
+        
+        unsafe {
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, cast_slice(&vertex_buffer), glow::STATIC_DRAW);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            
+
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ebo));
+            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, cast_slice(&element_buffer), glow::STATIC_DRAW);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+        }        
+
+        Some(ChunkTransparentMesh {
+            num_triangles,
+            vao,
+            vbo,
+            ebo,
+        })
+    }
+    pub fn new_transparent_mesh_unopt(&self, gl: &glow::Context) -> Option<ChunkTransparentMesh> {
         let mut vertex_buffer = Vec::new();
         let mut element_buffer = Vec::new();
 
@@ -1073,7 +1516,8 @@ impl ChunkData {
 impl Chunk {
     pub fn new(gl: &glow::Context, cd: ChunkData) -> Chunk {
         let opaque_mesh = cd.new_opaque_mesh(gl);
-        let transparent_mesh = cd.new_transparent_mesh(gl);
+        // let transparent_mesh = cd.new_transparent_mesh(gl);
+        let transparent_mesh = cd.new_transparent_mesh_unopt(gl);
         Chunk {
             data: cd, 
             opaque_mesh, 
