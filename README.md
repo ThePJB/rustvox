@@ -1,3 +1,15 @@
+TODO
+-------
+Finish refactor camera for frustum culling
+sort loading of chunks by distance and in frustum and maybe world surface
+add worldgen features, play with generators whatever
+
+
+
+Direction culling?
+
+
+
 # Problems
 * frame time information
 * decouple chunk loading across time
@@ -149,5 +161,8 @@ maybe do trees
 
 
 cull by facing direction smart!
-one mesh per direction
-frustum culling down is bugged
+
+
+ok meshing is laggy
+make it mesh way less per frame and sort by eg distance and being in view
+also move meshing into MT

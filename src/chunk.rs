@@ -365,7 +365,7 @@ impl ChunkData {
         })
     }
     
-    fn opaque_buffers_opt(&self) -> (Vec<f32>, Vec<u32>) {
+    pub fn opaque_buffers_opt(&self) -> (Vec<f32>, Vec<u32>) {
         let mut vertex_buffer = Vec::new();
         let mut element_buffer = Vec::new();
 
@@ -771,7 +771,7 @@ impl ChunkData {
         (vertex_buffer, element_buffer)
     }
     
-    fn transparent_buffers_opt(&self) -> (Vec<f32>, Vec<u32>) {
+    pub fn transparent_buffers_opt(&self) -> (Vec<f32>, Vec<u32>) {
         let mut vertex_buffer = Vec::new();
         let mut element_buffer = Vec::new();
 
@@ -983,7 +983,6 @@ impl ChunkData {
                 }
             }
         }
-        /*
 
         {  
             // +Y
@@ -1162,7 +1161,6 @@ impl ChunkData {
                 }
             }
         }
-        */
 
         (vertex_buffer, element_buffer)
     }
@@ -1512,12 +1510,103 @@ impl ChunkData {
     }
 }
 
+pub fn new_opaque_mesh(gl: &glow::Context, vertex_buffer: &[f32], element_buffer: &[u32]) -> Option<ChunkOpaqueMesh> {
+    let num_triangles = element_buffer.len() as i32;
+    if num_triangles == 0 {
+        return None;
+    }
+
+    let (vao, vbo, ebo) = unsafe {
+        let vao = gl.create_vertex_array().unwrap();
+        let vbo = gl.create_buffer().unwrap();
+        gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+        let ebo = gl.create_buffer().unwrap();
+        gl.bind_vertex_array(Some(vao));
+        let float_size = 4;
+        let total_floats = 3 + 4 + 3;
+        gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, float_size*total_floats, 0);
+        gl.enable_vertex_attrib_array(0);
+        gl.vertex_attrib_pointer_f32(1, 4, glow::FLOAT, false, float_size*total_floats, float_size*3);
+        gl.enable_vertex_attrib_array(1);
+        gl.vertex_attrib_pointer_f32(2, 3, glow::FLOAT, false, float_size*total_floats, float_size*7);
+        gl.enable_vertex_attrib_array(2);
+
+        gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        gl.bind_vertex_array(None);
+        
+        (vao, vbo, ebo)
+    };
+    
+    unsafe {
+        gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+        gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, cast_slice(&vertex_buffer), glow::STATIC_DRAW);
+        gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        
+
+        gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ebo));
+        gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, cast_slice(&element_buffer), glow::STATIC_DRAW);
+        gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+    }        
+
+    Some(ChunkOpaqueMesh {
+        num_triangles,
+        vao,
+        vbo,
+        ebo,
+    })
+}
+
+pub fn new_transparent_mesh(gl: &glow::Context, vertex_buffer: &[f32], element_buffer: &[u32]) -> Option<ChunkTransparentMesh> {
+    let num_triangles = element_buffer.len() as i32;
+    if num_triangles == 0 {
+        return None;
+    }
+
+    let (vao, vbo, ebo) = unsafe {
+        let vao = gl.create_vertex_array().unwrap();
+        let vbo = gl.create_buffer().unwrap();
+        gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+        let ebo = gl.create_buffer().unwrap();
+        gl.bind_vertex_array(Some(vao));
+        let float_size = 4;
+        let total_floats = 3 + 4 + 3;
+        gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, float_size*total_floats, 0);
+        gl.enable_vertex_attrib_array(0);
+        gl.vertex_attrib_pointer_f32(1, 4, glow::FLOAT, false, float_size*total_floats, float_size*3);
+        gl.enable_vertex_attrib_array(1);
+        gl.vertex_attrib_pointer_f32(2, 3, glow::FLOAT, false, float_size*total_floats, float_size*7);
+        gl.enable_vertex_attrib_array(2);
+
+        gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        gl.bind_vertex_array(None);
+        
+        (vao, vbo, ebo)
+    };
+    
+    unsafe {
+        gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+        gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, cast_slice(&vertex_buffer), glow::STATIC_DRAW);
+        gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        
+
+        gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ebo));
+        gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, cast_slice(&element_buffer), glow::STATIC_DRAW);
+        gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+    }        
+
+    Some(ChunkTransparentMesh {
+        num_triangles,
+        vao,
+        vbo,
+        ebo,
+    })
+}
 
 impl Chunk {
     pub fn new(gl: &glow::Context, cd: ChunkData) -> Chunk {
         let opaque_mesh = cd.new_opaque_mesh(gl);
-        // let transparent_mesh = cd.new_transparent_mesh(gl);
-        let transparent_mesh = cd.new_transparent_mesh_unopt(gl);
+        let transparent_mesh = cd.new_transparent_mesh(gl);
+        // let transparent_mesh = cd.new_transparent_mesh_unopt(gl);
         Chunk {
             data: cd, 
             opaque_mesh, 

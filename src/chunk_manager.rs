@@ -7,6 +7,7 @@ use crate::kmath::*;
 use crate::priority_queue::*;
 use crate::world_gen::*;
 use crate::settings::*;
+use crate::camera::*;
 use crossbeam::*;
 use crossbeam_channel::*;
 use std::collections::HashSet;
@@ -69,7 +70,7 @@ pub struct ChunkManager {
     //chunks_to_generate: PriorityQueue<f32, ChunkCoordinates>,
 
     job_sender: Sender<ChunkCoordinates>,
-    chunk_receiver: Receiver<ChunkData>,    // might be doing unnecessary copying
+    chunk_receiver: Receiver<(ChunkData, (Vec<f32>, Vec<u32>), (Vec<f32>, Vec<u32>))>,    // might be doing unnecessary copying
     loading: HashSet<ChunkCoordinates>,
 }
 
@@ -91,7 +92,9 @@ impl ChunkManager {
                 loop {
                     let job = job_receiver.recv().unwrap();
                     let chunk_data = ChunkData::new(job, &thread_gen);
-                    chunk_sender.send(chunk_data).unwrap();
+                    let opaque_stuff = chunk_data.opaque_buffers_opt();
+                    let transparent_stuff = chunk_data.transparent_buffers_opt();
+                    chunk_sender.send((chunk_data, opaque_stuff, transparent_stuff)).unwrap();
                 }
             });
         }
@@ -104,28 +107,15 @@ impl ChunkManager {
         }
     }
 
-    pub fn draw(&self, gl: &glow::Context, pos: Vec3, look: Vec3, up: Vec3, right: Vec3, fovx: f32, fovy: f32) {
+    pub fn draw(&self, gl: &glow::Context, cam: &Camera) {
 
-        println!("pos: {}\nlook: {}\n up: {}\n right: {}\n fovx: {}\n fovy: {}", pos, look, up, right, fovx, fovy);
+        // println!("pos: {}\nlook: {}\n up: {}\n right: {}\n fovx: {}\n fovy: {}", pos, look, up, right, fovx, fovy);
 
-        let vp_up = look.cross(right);
-
-        let  nbot = -look.rotate_about_vec3(right, -fovy).cross(right).normalize();
-        let  ntop = look.rotate_about_vec3(right, fovy).cross(right).normalize();
-        let  nleft = -look.rotate_about_vec3(vp_up, -fovx).cross(vp_up).normalize();
-        let  nright = look.rotate_about_vec3(vp_up, fovx).cross(vp_up).normalize();
-
-        let test_point = |p: Vec3| {
-            nbot.dot(p - pos) > 0.0 &&
-            ntop.dot(p - pos) > 0.0 &&
-            nleft.dot(p - pos) > 0.0 &&
-            nright.dot(p - pos) > 0.0
-        };
 
         let mut draw_list: Vec<&Chunk> = self.chunk_map.iter().filter(|(cc, c)| {
             let corners = cc.corners();
             for corner in corners {
-                if test_point(corner) {
+                if cam.point_in_vision(corner) {
                     return true;
                 }
             }
@@ -135,8 +125,8 @@ impl ChunkManager {
         // println!("draw {} / {}", draw_list.len(), self.chunk_map.len());
         
         draw_list.sort_unstable_by(|chunk1, chunk2| {
-            let dist1 = (chunk1.data.cc.center() - pos).square_distance();
-            let dist2 = (chunk2.data.cc.center() - pos).square_distance();
+            let dist1 = (chunk1.data.cc.center() - cam.pos).square_distance();
+            let dist2 = (chunk2.data.cc.center() - cam.pos).square_distance();
             dist1.partial_cmp(&dist2).unwrap()
         });
 
@@ -153,8 +143,8 @@ impl ChunkManager {
         }
     }
 
-    pub fn treadmill(&mut self, gl: &glow::Context, pos: Vec3, gen: &impl LevelGenerator) {
-        let in_chunk = ChunkCoordinates::containing_world_pos(pos);
+    pub fn treadmill(&mut self, gl: &glow::Context, cam: &Camera, gen: &impl LevelGenerator) {
+        let in_chunk = ChunkCoordinates::containing_world_pos(cam.pos);
 
         self.chunk_map.retain(|cc, chunk| {
             let x = cc.x;
@@ -172,6 +162,8 @@ impl ChunkManager {
             keep
         });
 
+        let mut new_jobs = Vec::new();
+
         // post jobs
         for i in -CHUNK_RADIUS..=CHUNK_RADIUS {
             for j in -CHUNK_RADIUS/3..=CHUNK_RADIUS/3 {
@@ -183,8 +175,9 @@ impl ChunkManager {
                     let cc = ChunkCoordinates {x,y,z};
 
                     if !self.chunk_map.contains_key(&cc) && !self.loading.contains(&cc) {
-                        self.job_sender.send(cc);
-                        self.loading.insert(cc);
+                        new_jobs.push(cc);
+                        // self.job_sender.send(cc);
+                        // self.loading.insert(cc);
 
                         /*
                         let priority = {
@@ -204,10 +197,41 @@ impl ChunkManager {
             }
         }
 
+        // right now its only going to load once we look
+
+        new_jobs.retain(|cc| !self.loading.contains(cc));
+        new_jobs.sort_by_key(|cc| {
+            let distance = (cam.pos - cc.center()).magnitude();
+            let in_view = cam.point_in_vision(cc.center()); // probably rough around the edges
+
+            -(distance * match in_view {
+                true => 0.1,
+                false => 1.0,
+            } * 1000.0) as i32
+        });
+
+        let watermark = 60;
+        while self.loading.len() < watermark {
+            if let Some(job) = new_jobs.pop() {
+                self.loading.insert(job);
+                self.job_sender.send(job).unwrap();
+            } else {
+                break;
+            }
+        }
+
         let mut chunks_this_frame = 0;
         // reap chunks
-        while let Ok(chunk_data) = self.chunk_receiver.try_recv() {
-            let new_chunk = Chunk::new(gl, chunk_data);
+        while let Ok((chunk_data, (ov, oe), (tv, te))) = self.chunk_receiver.try_recv() {
+            let opaque_mesh = new_opaque_mesh(gl, &ov, &oe);
+            let transparent_mesh = new_transparent_mesh(gl, &tv, &te);
+
+            let new_chunk = Chunk {
+                data: chunk_data,
+                opaque_mesh,
+                transparent_mesh,
+            };
+            // let new_chunk = Chunk::new(gl, chunk_data);
             // new_chunk.generate_mesh(gl);
             self.loading.remove(&new_chunk.data.cc);
             self.chunk_map.insert(new_chunk.data.cc, new_chunk);

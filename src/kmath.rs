@@ -75,6 +75,15 @@ impl std::ops::Neg for Vec3 {
     }
 }
 
+impl std::ops::AddAssign for Vec3 {
+
+    fn add_assign(&mut self, rhs: Vec3) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
+    }
+}
+
 impl std::fmt::Display for Vec3 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let decimals = f.precision().unwrap_or(2);
