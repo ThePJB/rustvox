@@ -176,33 +176,17 @@ impl ChunkManager {
 
                     if !self.chunk_map.contains_key(&cc) && !self.loading.contains(&cc) {
                         new_jobs.push(cc);
-                        // self.job_sender.send(cc);
-                        // self.loading.insert(cc);
-
-                        /*
-                        let priority = {
-                            let center = cc.center();
-                            let height = gen.height(center.x, center.z).max(SEA_LEVEL_F32);
-                            let distance = (pos - cc.center()).magnitude();
-                            if (height - center.y).abs() < 31.0 {
-                                distance / 10.0
-                            } else {
-                                distance
-                            }
-                        };
-                        self.chunks_to_generate.set(priority, cc);
-                        */
                     }
                 }
             }
         }
 
-        // right now its only going to load once we look
-
         new_jobs.retain(|cc| !self.loading.contains(cc));
         new_jobs.sort_by_key(|cc| {
             let distance = (cam.pos - cc.center()).magnitude();
             let in_view = cam.point_in_vision(cc.center()); // probably rough around the edges
+
+            // could do surface heuristic too
 
             -(distance * match in_view {
                 true => 0.1,
@@ -231,8 +215,6 @@ impl ChunkManager {
                 opaque_mesh,
                 transparent_mesh,
             };
-            // let new_chunk = Chunk::new(gl, chunk_data);
-            // new_chunk.generate_mesh(gl);
             self.loading.remove(&new_chunk.data.cc);
             self.chunk_map.insert(new_chunk.data.cc, new_chunk);
             chunks_this_frame += 1;
@@ -241,24 +223,4 @@ impl ChunkManager {
             }
         }
     }
-
-    /*
-    OK how are we doing this, is shit getting copied around or just references?
-    */
-
-    /*
-    pub fn generate_chunks(&mut self, max: i32, gl: &glow::Context, gen: &impl LevelGenerator) {
-        for i in 0..max {
-            if let Some(job) = self.chunks_to_generate.remove_min() {
-                let mut new_chunk_data = ChunkData::new(job, gen);
-                let mut new_chunk = Chunk::new(gl, new_chunk_data);
-                new_chunk.generate_mesh(gl);
-                self.chunk_map.insert(job, new_chunk);
-            } else {
-                return;
-            }
-        }
-    }
-    */
-
 }

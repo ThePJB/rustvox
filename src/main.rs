@@ -42,7 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let fovx = 0.9;
     let a = window_x / window_y;
-    let fovy = fovx / a;
 
     // let proj = Mat4::perspective_lh(fovx, 16.0/9.0, 0.01, 1000.0);
 
@@ -138,7 +137,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
         // game stuff
-        let gen = GenNormalCliffy::new(70);
+        // let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u32;
+        let seed = 0;
+        let gen = GenWarp::new(seed);
 
         let mut chunk_manager = ChunkManager::new(&gl, &gen);
 
@@ -261,16 +262,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
             -plane_s, -plane_h, -plane_s,
-            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.5,
 
             plane_s, -plane_h, -plane_s,
-            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.5,
 
             plane_s, -plane_h, plane_s,
-            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.5,
 
             -plane_s, -plane_h, plane_s,
-            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.5,
         ];
 
         let plane_idxs = vec![
@@ -279,13 +280,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ];
 
         let plane = Elemesh::new(&gl, plane_verts, plane_idxs);
-
-
-        // let mut camera_pos = Vec3::new(0.0, gen.height(0.0, 0.0) + 3.0, 0.0);
-        // let mut camera_dir = Vec3::new(0.0, 0.0, 1.0);
-        // let camera_up = Vec3::new(0.0, 1.0, 0.0);
-        let mut camera_pitch = 0.0f32;
-        let mut camera_yaw = 0.0f32;
 
         let mut cam = Camera::new(fovx, a, kmath::Vec3::new(0.0, gen.height(0.0, 0.0) + 3.0, 0.0));
         // handle those resize events and update it too
@@ -333,43 +327,32 @@ fn main() -> Result<(), Box<dyn Error>> {
                     // update
                     let update_start = SystemTime::now();
 
-                    window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new(window_x as i32, window_y as i32));
+                    window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new(window_x as i32, window_y as i32)).unwrap();
 
                     let speed = 128.0f32;
                     if held_keys.contains(&glutin::event::VirtualKeyCode::W) {
                         cam.update_z(speed*dt as f32);
-                        // let movt_dir = Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize();
-                        // camera_pos += speed*dt as f32*movt_dir;
                     }
                     if held_keys.contains(&glutin::event::VirtualKeyCode::S) {
                         cam.update_z(-speed*dt as f32);
-                        // let movt_dir = -Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize();
-                        // camera_pos += speed*dt as f32*movt_dir;
                     }
                     if held_keys.contains(&glutin::event::VirtualKeyCode::A) {
                         cam.update_x(-speed*dt as f32);
-                        // let movt_dir = Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize().cross(camera_up);
-                        // camera_pos += speed*dt as f32*movt_dir;
                     }
                     if held_keys.contains(&glutin::event::VirtualKeyCode::D) {
                         cam.update_x(speed*dt as f32);
-                        // let movt_dir = -Vec3::new(camera_dir.x, 0.0, camera_dir.z).normalize().cross(camera_up);
-                        // camera_pos += speed*dt as f32*movt_dir;
                     }
                     if held_keys.contains(&glutin::event::VirtualKeyCode::Space) {
                         cam.update_y(speed*dt as f32);
-                        // camera_pos.y += speed*dt as f32;
                     }
                     if held_keys.contains(&glutin::event::VirtualKeyCode::LShift) {
                         cam.update_y(-speed*dt as f32);
-                        // camera_pos.y += -speed*dt as f32;
                     }
 
                     let treadmill = SystemTime::now();
 
 
                     chunk_manager.treadmill(&gl, &cam, &gen);
-                    //chunk_manager.generate_chunks(CHUNKS_PER_FRAME, &gl, &gen);
 
                     let draw = SystemTime::now();
                     // draw
@@ -437,44 +420,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                     })).fold((0,0), |(ao, at), (o, t)| (ao + o, at + t));
 
                     println!("events: {:.2} update: {:.2} treadmill: {:.2}, draw: {:.2} swap: {:.2} omesh: {} kotri: {} tmesh: {} kttri:{}", t_events*1000.0, t_update*1000.0, t_treadmill*1000.0, t_draw*1000.0, t_swap*1000.0, omesh, otri/1000, tmesh, ttri/1000);
-
-                    /*
-                    let delta = loop_end.duration_since(pr).unwrap().as_secs_f64();
-                    let frame_cap = 1.0 / 60.0;
-                    // not sure if this handles vsync ay
-                    if delta < frame_cap {
-                        std::thread::sleep(Duration::from_secs_f64(frame_cap - delta));
-                        dt = frame_cap;
-                    } else {
-                        dt = delta;
-                    }
-                    */
                     window.window().set_title(&format!("RustVox | {:.2}ms", dt*1000.0));
                 }
 
                 Event::DeviceEvent {device_id: _, event: glutin::event::DeviceEvent::Motion {axis, value}} => {
                     if axis == 0 {
                         cam.update_look(value as f32, 0.0);
-                        
-                        // camera_yaw = (camera_yaw + sensitivity * value as f32 + 2.0*PI) % (2.0*PI);
                     } else {
                         cam.update_look(0.0, value as f32);
-                        /*
-                        // cam.update_y(value as f32);
-                        camera_pitch = camera_pitch + sensitivity * value as f32;
-                        let safety = 0.001;
-                        if camera_pitch < (-PI/2.0 + safety) {
-                            camera_pitch = (-PI/2.0 + safety);
-                        }
-                        if camera_pitch > (PI/2.0 - safety) {
-                            camera_pitch = (PI/2.0 - safety);
-                        }
-                        */
                     }
-
-                    // let rotation_mat = Mat4::from_rotation_y(camera_yaw) * Mat4::from_rotation_x(camera_pitch);
-                    // let dir = rotation_mat.transform_vector3(Vec3::new(0.0, 0.0, 1.0));
-                    // cam.dir = kmath::Vec3::new(dir.x, dir.y, dir.z);
                 },
 
 

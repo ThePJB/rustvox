@@ -1,26 +1,73 @@
 TODO
 -------
-Finish refactor camera for frustum culling
-sort loading of chunks by distance and in frustum and maybe world surface
+
 add worldgen features, play with generators whatever
-
-
 
 Direction culling?
 
+Water z buffer shader would be pretty easy, learn something new, kinda a ceebs lol
 
+distance fog: fragment.z
+
+
+Worldgen remarks
+----------------
+* be fun to just try and recreate various environments
+ * yellowstone - how they get sulfurous pools, actually I kinda get it, not sure how you would get the height etc
+ * craggy spikey peaks
+ * an island - just to have a sensible large scale structure
+
+* like remapping heights as a concept
+* could simplify the trait to have an output to 2d and a input thats just xyz, 2d thing, meh
+
+* what can be made direct, probably could do trees with the right noise function if you  just do a quick local numerical search on it
+* so much shit you can do on noise function really
+* newtons method on perlin noise -> blue noise?
+* maybe you could have a direct formula for still water if you detected a local minimum.. but nah
+* but i wonder what effects you could get with neighbourhood sampling, e.g. valley microclimate
+
+* headlands are cool
+* headland: a component of noise smooth minned into normal landscape, clamped hard by coastline mask
+ * maybe a general approach to cliffs as well. like the sand and stuff at the footing though...
+
+* can probably do some cool shit with edge detection for sulfite pools maybe
+ * reminds me of the roots water in aoe2
+
+* dark world with super gay swamp areas that suck to traverse
+ * continent
+ * swamp
+ * swamp island
+ * water
+ make em feel real bad by towering over
+could have a real simple classifier to say if a tile e.g. it satisifes X and neighbours N away also satisfy X
+classifier biomes could be spicy than traditional forward minecraft biomes
+
+
+periodic could be fine for real big shit tbh, it could even be chunk aligned and just a bool yes or no for each chunk
+
+what about periodic but domain warped
+play with domain warping hey. is normal just like domain warping the identity function?
+
+other avenues: rivers - they are cool but might not be worth the effort
+do want some larger scale structure though
+
+I think for now and potentially for wizard game, just play with interesting and dangerous biomes made from mucking about with noise
+ice crevasses too
+
+one day its gonna be time for player controller and entities and ai etc
+
+obelisks with stuff on top
+
+theres a subcategory of behaviour you can get with direct methods
+if you had 2 things with coprime periods you could maybe get some cheeky fake blue noise happening but idk
+probably worth it to implement 'cheap indirect' as a general thing - quadtree or something lookup with radius
 
 # Problems
-* frame time information
-* decouple chunk loading across time
-* multithread chunk generation
 * Need debug information, stupid holes in world
     It seems like its literally doing everything correctly and then drawing the wrong fucking thing on the screen
 * Remove glam
 * unloading might be slightly lazy
 * weird shit when you go in the ground
-* add culling
-* frustum cull chunks
 * lel mouse scrolling is on a different axis and im not handling it
 * screenshot button
 

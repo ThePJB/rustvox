@@ -86,6 +86,7 @@ pub enum Block {
     Dirt,
     Grass,
     Stone,
+    Snow,
     Water,
     Sand,
     Lava,
@@ -292,6 +293,7 @@ impl ChunkData {
                                 Block::Moss => {[0.0, 0.7, 0.0, 1.0]},
                                 Block::BlueFungus => {[0.0, 0.7, 1.0, 1.0]},
                                 Block::YellowFungus => {[0.5, 1.0, 0.1, 1.0]},
+                                Block::Snow => {[1.0, 1.0, 1.0, 1.0]},
                                 Block::Wat => {[1.0, 0.0, 1.0, 1.0]},
                 
                             };
@@ -386,6 +388,7 @@ impl ChunkData {
                 Block::Moss => {[0.0, 0.7, 0.0, 1.0]},
                 Block::BlueFungus => {[0.0, 0.7, 1.0, 1.0]},
                 Block::YellowFungus => {[0.5, 1.0, 0.1, 1.0]},
+                Block::Snow => {[1.0, 1.0, 1.0, 1.0]},
                 Block::Wat => {[1.0, 0.0, 1.0, 1.0]},
             };
             
@@ -1246,6 +1249,7 @@ impl ChunkData {
                                 Block::Moss => {[0.0, 0.7, 0.0, 1.0]},
                                 Block::BlueFungus => {[0.0, 0.7, 1.0, 1.0]},
                                 Block::YellowFungus => {[0.5, 1.0, 0.1, 1.0]},
+                                Block::Snow => {[1.0, 1.0, 1.0, 1.0]},
                                 Block::Wat => {[1.0, 0.0, 1.0, 1.0]},
                 
                             };

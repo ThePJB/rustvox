@@ -1,3 +1,5 @@
+use crate::kmath::*;
+
 pub fn khash(seed: u32) -> u32 {
     let n1 = 0xB5297A4D;
     let n2 = 0x68E31DA4;
@@ -23,13 +25,20 @@ pub fn khash_float2(seed: u32, x: f32, y: f32) -> u32 {
 pub fn khash_2float(x: u32, y: u32, seed: u32) -> f32 {
     khash(x + y * 0xA341316C + seed * 0xF73DB187) as f32 / std::u32::MAX as f32
 }
+
+pub fn khash_2fi_fo(x: f32, y: f32, seed: u32) -> f32 {
+    let u = khash_float2(seed, x, y);
+    u as f32 / std::u32::MAX as f32
+    
+}
+pub fn khash_2fi_fo_exp(x: f32, y: f32, seed: u32) -> f32 {
+    -khash_2fi_fo(x, y, seed).ln()
+}
+
+
 // 0..1
 pub fn khash_3float(x: u32, y: u32, z: u32, seed: u32) -> f32 {
     khash(x + y * 0xA341316C + seed * 0xF73DB187 + z * 0x412439CC) as f32 / std::u32::MAX as f32
-}
-
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a * (1.0-t) + b * t
 }
 
 fn bilinear(a: f32, b: f32, c: f32, d: f32, t1: f32, t2: f32) -> f32 {
@@ -84,6 +93,47 @@ pub fn fgrad2_isotropic(x: f32, y: f32, seed: u32) -> f32 {
     1.675
 }
 
+pub fn grad2_isotropic_exp(x: f32, y: f32, seed: u32) -> f32 {
+    let (xfloor, xfrac) = floorfrac(x);
+    let (yfloor, yfrac) = floorfrac(y);
+    // also why not use a bigger gradient table
+    //let grads = [(-1.0, 0.0), (1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (root2, root2), (-root2, root2), (root2, -root2), (-root2, -root2)];
+    let grads = [(-1.0, 0.0), (1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (ROOT2INV, ROOT2INV), (-ROOT2INV, ROOT2INV), (ROOT2INV, -ROOT2INV), (-ROOT2INV, -ROOT2INV),
+        (0.5, ROOT3ON2), (0.5, ROOT3ON2), (-0.5, -ROOT3ON2), (-ROOT3ON2, -0.5), (-0.5, ROOT3ON2), (-ROOT3ON2, 0.5), (0.5, -ROOT3ON2), (ROOT3ON2, -0.5)
+    ];
+    // idk whystefan gustavson does the below and not the above. it kinda does look better lol
+    // also why not more gradients?
+    //let grads = [(-1.0, 0.0), (1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (1.0, 1.0), (-1.0, 1.0), (1.0, -1.0), (-1.0, -1.0)];
+
+    let cf = |corner_x: f32, corner_y: f32| {
+        let g_idx = khash_float2(seed, corner_x + xfloor, corner_y + yfloor) & 15;
+        let magnitude = khash_2fi_fo_exp(corner_x + xfloor, corner_y + yfloor, seed);
+        //let g_idx = khash(xu + corner_x + (yu + corner_y) * 0xA341316C + seed * 0xF73DB187) & 15;
+        let (dx, dy) = grads[g_idx as usize];
+        // println!("dx {} dy {}", dx, dy);
+        // println!("xfrac {} yfrac {}", x.fract(), y.fract());
+        magnitude * dx * (xfrac - corner_x as f32) + dy * (yfrac - corner_y as f32)
+    };
+    
+    let c1 = cf(0.0,0.0);
+    let c2 = cf(1.0,0.0);
+    let c3 = cf(0.0,1.0);
+    let c4 = cf(1.0,1.0);
+
+    let result = bilinear(c1, c2, c3, c4, xfrac, yfrac);
+    // println!("c1 {} c2 {} c3 {} c4 {}", c1, c2, c3, c4);
+    // println!("res: {}", result);
+    (result + 1.0) / 2.0
+}
+
+pub fn fgrad2_isotropic_exp(x: f32, y: f32, seed: u32) -> f32 {
+    (1.000 * grad2_isotropic_exp(x, y, seed*0x3523423) +
+    0.500 * grad2_isotropic_exp(x * 2.0, y * 2.0, seed*0xF73DB187) + 
+    0.250 * grad2_isotropic_exp(x * 4.0, y * 4.0, seed*0x159CBAFE) + 
+    0.125 * grad2_isotropic_exp(x * 8.0, y * 8.0, seed*0x83242364)) /
+    1.675
+}
+
 pub fn floorfrac(x: f32) -> (f32, f32) {
     let floor = x.floor();
     if x < 0.0 {
@@ -92,6 +142,11 @@ pub fn floorfrac(x: f32) -> (f32, f32) {
         (floor, x - floor)
     }
 }
+
+
+
+
+
 
 #[test]
 fn test_floorfrac() {

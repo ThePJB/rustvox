@@ -1,6 +1,8 @@
 use crate::chunk::*;
 use crate::krand::*;
 use crate::settings::*;
+use crate::kmath::*;
+
 
 /*
 lets give this trait thing a try
@@ -18,6 +20,17 @@ pub trait LevelGenerator: Clone + Send + Sync + 'static {
 
     fn height(&self, x: f32, z: f32) -> f32;
     fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block>;
+
+    fn height_gradient(&self, x: f32, z: f32) -> (f32, Vec2) {
+        let h1 = self.height(x,z);
+        let hgx = self.height(x + 1.0, z + 0.0);
+        let hgz = self.height(x + 0.0, z + 1.0);
+
+        let gradx = h1 - hgx;
+        let gradz = h1 - hgz;
+
+        (h1, Vec2{x: gradx, y: gradz})
+    }
 }
 
 #[derive(Clone)]
@@ -220,6 +233,459 @@ impl LevelGenerator for GenHell {
     }
 }
 
+
+#[derive(Clone)]
+pub struct GenExp {
+    seed: u32,
+}
+
+impl GenExp {
+    pub fn new(seed: u32) -> GenExp {
+        GenExp {
+            seed
+        }
+    }
+}
+
+
+impl LevelGenerator for GenExp {
+
+
+    fn height(&self, x: f32, z: f32) -> f32 {    
+        let height_noise = fgrad2_isotropic_exp(0.0025 * x, 0.0025 * z, self.seed);
+
+        (height_noise - 0.5) * 400.0
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let height = self.height(x as f32, z as f32) as i32;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+
+                    let block = match (y - height, y) {
+                        (dh, y) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y) if dh > 0 && y <= 0 => Block::Water,
+                        (dh, y) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y) if dh == 0 && y > -4 => Block::Sand,
+                        (dh, y) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
+
+
+#[derive(Clone)]
+pub struct GenWarp {
+    seed: u32,
+}
+
+impl GenWarp {
+    pub fn new(seed: u32) -> GenWarp {
+        GenWarp {
+            seed
+        }
+    }
+
+    fn fbm1(p: Vec2, seed: u32) -> f32 {
+        fgrad2_isotropic(p.x, p.y, seed)
+    }
+
+    fn fbm2(p: Vec2, seed: u32) -> Vec2 {
+        Vec2 {
+            x: fgrad2_isotropic(p.x, p.y, seed),
+            y: fgrad2_isotropic(p.x, p.y, seed + 0x230895F7),
+        }
+    }
+}
+
+
+impl LevelGenerator for GenWarp {
+
+    fn height(&self, x: f32, z: f32) -> f32 {
+        let p = 0.005 * Vec2 { x, y: z};
+
+        let p_lf = 0.0005 * Vec2{x, y:z};
+        let h_lf = GenWarp::fbm1(p_lf + 0.5*GenWarp::fbm2(p, self.seed + 0x12345131), self.seed + 0x42141213);
+
+        let h_mountain = GenWarp::fbm1(p + GenWarp::fbm2(p + GenWarp::fbm2(p + GenWarp::fbm2(p, self.seed + 0x31261343), self.seed + 0x91376513), self.seed + 0x23452337), self.seed);
+        let h_mountain_sharp = h_mountain * h_mountain * h_mountain * h_mountain * 5.0;
+
+        let h_mountain = h_mountain.max(h_mountain_sharp); // or softmax
+
+        let p_rough = 0.002 * Vec2 { x, y: z};
+        let roughness = GenWarp::fbm1(p_rough, self.seed + 34192313);
+        // let roughness = fgrad2_isotropic(0.001 * x, 0.001 * z, self.seed + 34192313);
+        let t_mountain = saturate(roughness - 0.1, 0.35, 0.65);
+
+        // let h_plains = 0.5;
+
+        let h_land = h_lf + t_mountain * t_mountain * h_mountain;
+        
+        // let h_land = lerp(h_lf, h_lf + h_mountain, t_mountain);
+
+
+        let h_ocean = 0.1;
+        let t_ocean = saturate(fgrad2_isotropic(0.0005 * x, 0.0005 * z, self.seed + 34111231), 0.50, 0.7);
+
+        let h = lerp(h_land, h_ocean, t_ocean);
+
+        
+        
+        // let h = lerp(lf, h_warp, t);
+        // let h = lf;
+
+        // let h = GenWarp::fbm1(p, self.seed);
+
+        /*
+        let wwarp_coeff = 0.001;
+        let wwarp_mag = 0.5;
+        let x_wwarp = grad2_isotropic(x * wwarp_coeff, z * wwarp_coeff, self.seed + 523423431) - 0.5;
+        let z_wwarp = grad2_isotropic(x * wwarp_coeff, z * wwarp_coeff, self.seed + 735234177) - 0.5;
+
+        // wonder if correlating them is good
+
+        let warp_coeff = 0.001;
+        let warp_mag = 10.0;
+        let x_warp = grad2_isotropic(x * warp_coeff + x_wwarp * wwarp_mag, z * warp_coeff + z_wwarp * wwarp_mag, self.seed + 123451235) - 0.5;
+        let z_warp = grad2_isotropic(x * warp_coeff + x_wwarp * wwarp_mag, z * warp_coeff + z_wwarp * wwarp_mag, self.seed + 541241313) - 0.5;
+        let height_noise = fgrad2_isotropic_exp(0.0025 * x + x_warp * warp_mag, 0.0025 * z + z_warp * warp_mag, self.seed);
+
+        (height_noise - 0.5) * 400.0
+        */
+
+        (h - 0.4) * 200.0
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let (height, grad) = self.height_gradient(x as f32, z as f32);
+                let height = height as i32;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+                    // let m = grad.x.abs().max(grad.y.abs());
+                    let m = grad.magnitude();
+                    let block = match (y - height, y, m) {
+                        (dh, y, g) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y, g) if dh > 0 && y <= 0 => Block::Water,
+                        (dh, y, g) if g > 1.9 => Block::Stone,
+                        (dh, y, g) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y, g) if dh == 0 && y > -4 => Block::Sand,
+                        (dh, y, g) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
+
+
+#[derive(Clone)]
+pub struct GenClassify {
+    seed: u32,
+}
+
+impl GenClassify {
+    pub fn new(seed: u32) -> GenClassify {
+        GenClassify {
+            seed
+        }
+    }
+}
+
+
+impl LevelGenerator for GenClassify {
+
+    fn height(&self, x: f32, z: f32) -> f32 {
+
+        // let d = 0.4;
+        let d = fgrad2_isotropic(x, z, self.seed + 23434713);
+        let neighs = [(-d, 0.0), (0.0, -d), (d, 0.0), (0.0, d), (0.0, 0.0)];
+        let c = neighs.iter()
+            // .map(|(nx, ny)| fgrad2_isotropic(x, z, self.seed))
+            .map(|(nx, ny)| fgrad2_isotropic(0.005 * x + *nx, 0.005 * z + *ny, self.seed))
+            .filter(|x| *x > 0.7)
+            .count();
+
+            let h = match c {
+            0 => -10.0,
+            1 => 2.0,
+            2 => 10.0,
+            3 => 20.0,
+            4 => 30.0,
+            5 => 30.0,
+            _ => panic!("unreachable")
+        };
+
+        
+
+        h
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let height = self.height(x as f32, z as f32) as i32;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+
+                    let block = match (y - height, y) {
+                        (dh, y) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y) if dh > 0 && y <= 0 => Block::Water,
+                        (dh, y) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y) if dh == 0 && y > -4 => Block::Sand,
+                        (dh, y) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
+#[derive(Clone)]
+pub struct GenTable {
+    seed: u32,
+}
+
+impl GenTable {
+    pub fn new(seed: u32) -> GenTable {
+        GenTable {
+            seed
+        }
+    }
+}
+
+
+impl LevelGenerator for GenTable {
+
+    fn height(&self, x: f32, z: f32) -> f32 {
+        let tn = fgrad2_isotropic(x * 0.001, z * 0.001, self.seed);
+
+        let tn_adjusted = remap(tn, 0.49, 0.51, 0.0, 1.0).clamp(0.0, 1.0);
+
+        tn_adjusted * 40.0
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let height = self.height(x as f32, z as f32) as i32;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+
+                    let block = match (y - height, y) {
+                        (dh, y) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y) if dh > 0 && y <= 0 => Block::Water,
+                        (dh, y) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y) if dh == 0 && y > -4 => Block::Sand,
+                        (dh, y) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
+
+#[derive(Clone)]
+pub struct GenBlue {
+    seed: u32,
+}
+
+impl GenBlue {
+    pub fn new(seed: u32) -> GenBlue {
+        GenBlue {
+            seed
+        }
+    }
+}
+
+impl LevelGenerator for GenBlue {
+    fn height(&self, x: f32, z: f32) -> f32 {
+        // let nxy = |x: f32, z: f32| -> f32 {grad2_isotropic(x * 0.1, z * 0.1, self.seed)};
+        //let h = grad2_isotropic(x * 0.1, z * 0.1, self.seed);
+        // let h = nxy(x,z) - nxy(x-1.0, z) - nxy(x+1.0,z) - nxy(x, z-1.0) - nxy(x, z+1.0) + 1.0;
+        let period = 0.1;
+        let h = (0.1 * x).sin().abs() + (0.1 * z).sin().abs();
+        10.0 * h
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let height = self.height(x as f32, z as f32) as i32;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+
+                    let block = match (y - height, y) {
+                        (dh, y) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y) if dh > 0 && y <= 0 => Block::Water,
+                        // (dh, y) if dh == 0 && y > 120 => Block::Snow,
+                        // (dh, y) if dh > -4 && y > 100 => Block::Stone,
+                        // (dh, y) if dh == 0 && y > 80 => Block::Dirt,
+                        (dh, y) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y) if dh == 0 && y > -4 => Block::Sand,
+                        (dh, y) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
+
+#[derive(Clone)]
+pub struct GenIsland {
+    seed: u32,
+}
+
+impl GenIsland {
+    pub fn new(seed: u32) -> GenIsland {
+        GenIsland {
+            seed
+        }
+    }
+}
+
+impl LevelGenerator for GenIsland {
+
+    // tension between maintaining interesting coastline shapes and having tall mountains in the middle
+
+    fn height(&self, x: f32, z: f32) -> f32 {   
+        let island_height_noise = fgrad2_isotropic_exp(0.005 * x, 0.005 * z, self.seed + 234235);
+        let r = 500.0;
+        let xp = x/r;
+        let zp = z/r;
+        let mut island_height = 1.0 - (xp*xp + zp*zp).sqrt();
+
+        island_height = if island_height < 0.0 {
+            island_height
+        } else {
+            island_height.powf(3.0)
+        };
+
+        
+        // ok this was an interesting remapping, not really the effect I was hoping for
+        // theres some real big hills too, like maybe you want to modify the height noise thing or do a softmin/softmax by another function
+        
+        // some smooth/flat areas would be good
+        
+        // let height_noise = fgrad2_isotropic_exp(0.0025 * x, 0.0025 * z, self.seed);
+
+        // how to get that nice eroded look that real terrains got
+        
+        let final_height = 100.0 * island_height_noise + 100.0 * island_height;
+        
+        let on_island = final_height > 0.0;
+
+        let cliff_height = if on_island {
+            100.0 * island_height_noise
+        } else {
+            final_height
+        };
+
+        let ct_noise = fgrad2_isotropic(0.001 * x, 0.001 * z, self.seed + 88901917);
+        let ct = if !on_island || ct_noise < 0.5 {
+            0.0
+        } else {
+            (ct_noise - 0.5) * 2.0
+        };
+
+        lerp(final_height, cliff_height, ct)
+
+
+        // (height_noise - 0.5) * 400.0
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let height = self.height(x as f32, z as f32) as i32;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+
+                    let block = match (y - height, y) {
+                        (dh, y) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y) if dh > 0 && y <= 0 => Block::Water,
+                        // (dh, y) if dh == 0 && y > 120 => Block::Snow,
+                        // (dh, y) if dh > -4 && y > 100 => Block::Stone,
+                        // (dh, y) if dh == 0 && y > 80 => Block::Dirt,
+                        (dh, y) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y) if dh == 0 && y > -4 => Block::Sand,
+                        (dh, y) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
 
 #[derive(Clone)]
 pub struct GenMagicMoon {
