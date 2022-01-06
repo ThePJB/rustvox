@@ -213,3 +213,9 @@ cull by facing direction smart!
 ok meshing is laggy
 make it mesh way less per frame and sort by eg distance and being in view
 also move meshing into MT
+
+
+could dither in the stone from cliffs with hf noise
+grass on top, sand on top
+
+do nice fog

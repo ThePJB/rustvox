@@ -77,3 +77,10 @@ anyway next i could do:
     wetlands
 
 magic stuff can have all kinds of structure like domain repetition, occurring in concentric circles etc. like for hell, circles of hell.
+
+maybe i should amplify the gradient somehow...
+https://www.decarpentier.nl/scape-procedural-extensions
+its actually used in fbm to tweak the noise of finer octaves, its pretty fair you want more hf in the cliffy side bits i think
+
+cool well im spent
+maybe organize the world gen a bit better. fuck around more with mountains or do something different
