@@ -55,3 +55,44 @@ bigger simpler kernels could do something
 if you want repitition tyhis achieves it especially for magic like hexagon shaped spawns etc
 
 you could totally do filtering like this FIR as well or other techniques lol. gaussian blur.
+
+-------
+
+Beach:
+
+Warp w/ beachness s/t lines of equal beachness vary slowly but perpendicular not at all?
+or just vary very low freq spatially might not be a problem
+
+got it started its not very convincing yet but we'll get there!
+transition from dune back to land is shit
+i think its meant to get higher and then come back down, needs another transition function
+or up, in case of headland, could be a discontinuous lerp thing
+
+
+good erosion: have one (discontinuous) map for hardness of rock and one continuous one for level of erosion, should == cliffs
+
+structures: a special kind of chunk unioned with the ones it needs to touch
+
+doing it with cos is a cunt
+how about bezier curves for transects?
+
+
+do fog that will be nice
+
+do procedural grass that will be nice, can do height as well, outside of block system
+maybe wind in vertex shader or something, mm triangles
+
+
+probably better to truncate the dunes than compress them but I digress
+
+for a better structure we could totally do a distance function thing and then also potentially classify for dank estuaries and stuff
+
+
+need cubic beziers to have enough good shape I think
+need to sort out the interface between the ocean and the beach, and the beach and the land
+
+and I think the distance function thing can make it have nice properties as far as smoothness and stuff is concerned
+
+
+
+

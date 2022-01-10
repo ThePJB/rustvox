@@ -9,9 +9,7 @@ lets give this trait thing a try
 i wonder if some fancy combinator is possible... sounds slow lol
 */
 
-fn slow_stop(t: f32) -> f32 {
-    1.0 - (1.0 - t)*(1.0 - t)
-}
+
 
 pub const SEA_LEVEL_F32: f32 = 0.0;
 pub const SEA_LEVEL_I32: i32 = 0;
@@ -32,6 +30,23 @@ pub trait LevelGenerator: Clone + Send + Sync + 'static {
         (h1, Vec2{x: gradx, y: gradz})
     }
 }
+
+
+fn fbm1(p: Vec2, seed: u32) -> f32 {
+    fgrad2_isotropic(p.x, p.y, seed)
+}
+
+fn fbm2(p: Vec2, seed: u32) -> Vec2 {
+    Vec2 {
+        x: fgrad2_isotropic(p.x, p.y, seed),
+        y: fgrad2_isotropic(p.x, p.y, seed + 0x230895F7),
+    }
+}
+
+fn slow_stop(t: f32) -> f32 {
+    1.0 - (1.0 - t)*(1.0 - t)
+}
+
 
 #[derive(Clone)]
 pub struct GenNormalCliffy {
@@ -254,7 +269,7 @@ impl LevelGenerator for GenExp {
     fn height(&self, x: f32, z: f32) -> f32 {    
         let height_noise = fgrad2_isotropic_exp(0.0025 * x, 0.0025 * z, self.seed);
 
-        (height_noise - 0.5) * 400.0
+        (height_noise - 0.6) * 400.0
     }
 
     fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
@@ -406,8 +421,176 @@ impl LevelGenerator for GenWarp {
 }
 
 
+
+#[derive(Clone)]
+pub struct GenBeach {
+    seed: u32,
+}
+
+pub struct Beach2d {
+    height: f32,
+    beachness: f32,
+    vegetation: f32,
+}
+
+impl GenBeach {
+    pub fn new(seed: u32) -> GenBeach {
+        GenBeach {
+            seed
+        }
+    }
+
+    fn block_beach(&self, x: i32, y: i32, z: i32, beach_params: &Beach2d) -> Block {
+        let h = beach_params.height as i32;
+        let dh = y - h;
+
+        let grass_roll = khash_2float(x as u32, z as u32, self.seed);
+        let surface_grass = beach_params.vegetation;
+
+        if dh > 0 && y >= 0 {
+            Block::Air
+        } else if dh > 0 && y < 0 {
+            Block::Water
+        } else if dh == 0 {
+            if surface_grass > 0.1 && grass_roll > 0.5 {
+                Block::Grass
+            } else {
+                Block::Sand
+            }
+        } else if dh > -10 {
+            Block::Sand
+        } else {
+            Block::Stone
+        }
+    }
+
+    pub fn vals2d(&self, x: f32, z: f32) -> Beach2d {
+        let p = 0.0005 * Vec2::new(x, z);
+
+        let lf = fgrad2_isotropic(p.x, p.y, self.seed);//.powf();
+
+        let land_noise = fgrad2_isotropic(x * 0.005, z * 0.005, self.seed + 2345823);
+
+        let beach_start = 0.5;
+        let beach_peak = 0.63;
+        let beach_end = 0.65;
+
+        let ocean_t = saturate(lf, 0.0, beach_start);
+        let beach_t = saturate(lf, beach_start, beach_peak);
+        let beach_land_t = saturate(lf, beach_peak, beach_end);
+
+
+        // let mut h = 0.5 * beach_t + 0.5 * beach_t * (60.0 * beach_t).cos();
+
+        // let beach_h = bezier_transect(beach_t, 
+        //     // &[   0.1, 0.1, 0.1, 0.15, 0.15, 0.2, 0.2],
+        //     &[   1.0, 1.0, 1.0, 1.5, 1.5, 2.0, 2.0],
+        //     &[0.0, 0.1, 0.3, 0.1, 0.4,  0.15, 0.5, 0.3], 
+        //     &[(Vec2::new(0.3, 0.5), Vec2::new(0.3, 0.5)),
+        //     (Vec2::new(0.1, -0.5), Vec2::new(0.1, 0.5)),
+        //     (Vec2::new(0.5, -0.5), Vec2::new(0.5, 0.5)),
+        //     (Vec2::new(0.5, -0.5), Vec2::new(0.5, 0.5)),
+        //     (Vec2::new(0.5, -0.5), Vec2::new(0.5, 0.5)),
+        //     (Vec2::new(0.5, -0.5), Vec2::new(0.5, 0.5)),
+        //     (Vec2::new(0.5, -0.5), Vec2::new(0.5, 0.5)),
+        //     ]);
+
+        let beach_h = bezier_transect(beach_t, 
+            &[   5.0, 1.0, 2.0, 1.0, 3.0, 4.0],
+            &[0.0, 0.1, 0.1, 0.3, 0.25, 0.4, 0.25], 
+            &[(Vec2::new(1.0, 0.0), Vec2::new(1.0, 0.0)),
+            (Vec2::new(1.0, 0.0), Vec2::new(1.0, 0.0)),
+            (Vec2::new(1.0, 0.0), Vec2::new(1.0, 0.0)),
+            (Vec2::new(1.0, 0.0), Vec2::new(1.0, 0.0)),
+            (Vec2::new(1.0, 0.0), Vec2::new(1.0, 0.0)),
+            (Vec2::new(1.0, 0.0), Vec2::new(1.0, 0.0)),
+            ]);
+
+        // let beach_h = bezier_transect(beach_t, 
+        //     &[   1.0, 1.0, 1.0, 1.0],
+        //     &[0.0, 0.5, 0.0, 0.5, 0.0], 
+        //     &[(Vec2::new(1.0, 0.0), Vec2::new(0.0, 1.0)),
+        //     (Vec2::new(1.0, 1.0), Vec2::new(0.0, 0.0)),
+        //     (Vec2::new(1.0, 0.0), Vec2::new(0.0, 1.0)),
+        //     (Vec2::new(1.0, 1.0), Vec2::new(0.0, 0.0)),
+        //     ]);
+
+        // let beach_h = bezier_transect(beach_t, 
+        //     &[   1.0, 1.0, 1.0, 1.0],
+        //     &[0.0, 0.5, 0.0, 0.5, 0.0], 
+        //     &[(Vec2::new(0.5, 0.0), Vec2::new(0.5, 1.0)),
+        //     (Vec2::new(0.5, 1.0), Vec2::new(0.5, 0.0)),
+        //     (Vec2::new(0.5, 0.0), Vec2::new(0.5, 1.0)),
+        //     (Vec2::new(0.5, 1.0), Vec2::new(0.5, 0.0)),
+        //     ]);
+
+        let h = if beach_t > 0.0 && beach_t < 1.0 {
+            beach_h
+            // beach_t
+        } else if ocean_t < 1.0 {
+            -1.0
+        } else if beach_t >= 1.0 {            
+            lerp(beach_h, land_noise, beach_land_t)
+        } else {
+            land_noise.powf(1.5) * 100.0
+        };
+
+        // let v = 
+
+        Beach2d {
+            height: h * 60.0,
+            beachness: beach_t,
+            vegetation: beach_t * beach_h,
+        }
+
+    }
+
+}
+
+
+impl LevelGenerator for GenBeach {
+
+    fn height(&self, x: f32, z: f32) -> f32 {
+        self.vals2d(x, z).height
+        
+    }
+
+    fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block> {
+        let mut blocks = vec![Block::Air; S*S*S];
+        for k in 0..S {
+            let z = oz*S as i32 + k as i32;
+    
+            for i in 0..S {
+                let x = ox*S as i32 + i as i32;
+                let vals2d = self.vals2d(x as f32, z as f32);
+                let height = vals2d.height as i32;
+                let b = vals2d.beachness;
+            
+                for j in 0..S {
+                    let idx = k*S + j*S*S + i;
+                    let y = oy*S as i32 + j as i32;
+
+                    let block = match (y - height, y, b) {
+                        (dh, y, b) if dh > 0 && y > 0 => Block::Air,
+                        (dh, y, b) if dh > 0 && y <= 0 => Block::Water,
+                        (dh, y, b) if b < 0.99 => self.block_beach(x, y, z, &vals2d),
+                        (dh, y, b) if dh == 0 && y > 4 => Block::Grass,
+                        (dh, y, b) if dh > -4 => Block::Dirt,
+                        _ => Block::Stone,
+                    };
+    
+                    blocks[idx] = block;
+                }
+            }
+        }
+        blocks
+    }
+}
+
+
 #[derive(Clone)]
 pub struct GenClassify {
+    // porbolem is its a linear classifier, boring!
     seed: u32,
 }
 

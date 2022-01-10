@@ -74,7 +74,6 @@ pub struct ChunkManager {
     loading: HashSet<ChunkCoordinates>,
 }
 
-const N_WORKERS: usize = 6;
 impl ChunkManager {
     pub fn new(gl: &glow::Context, gen: &impl LevelGenerator) -> ChunkManager {
         let mut chunk_map = HashMap::new();

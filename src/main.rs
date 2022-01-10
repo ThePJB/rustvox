@@ -139,7 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // game stuff
         // let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u32;
         let seed = 0;
-        let gen = GenWarp::new(seed);
+        let gen = GenBeach::new(seed);
 
         let mut chunk_manager = ChunkManager::new(&gl, &gen);
 

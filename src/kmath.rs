@@ -187,3 +187,63 @@ impl std::fmt::Display for Vec3 {
         f.pad_integral(true, "", &string)
     }
 }
+
+// maybe x intervals, y heights would be better
+
+// x 0..1
+// return start index, sub interval
+// first in list should be 0
+pub fn x_in_list(x: f32, intervals: &[f32]) -> (usize, f32) {
+    assert_eq!(x <= 1.0, true);
+    assert_eq!(x >= 0.0, true);
+
+    
+    let max: f32 = intervals.iter().sum();
+    let normalized_intervals = intervals.iter().map(|x| x / max);
+
+    let mut cum_x = x;
+
+    for (i, interval) in normalized_intervals.enumerate() {
+        if cum_x <= interval {
+            return (i, cum_x / interval);
+        } else {
+            cum_x -= interval;
+        }
+    }
+    (intervals.len()-1, 1.0)
+    // panic!("unreachable xil");
+}
+
+#[test]
+fn test_xil() {
+    assert_eq!(x_in_list(0.0, &[1.0]), (0, 0.0));
+    assert_eq!(x_in_list(1.0, &[1.0]), (0, 1.0));
+    assert_eq!(x_in_list(0.5, &[1.0]), (0, 0.5));
+    assert_eq!(x_in_list(0.5, &[10.0, 1.0]), (0, 0.55));
+}
+
+pub fn bezier3(t: f32, a: Vec2, b: Vec2, c1: Vec2, c2: Vec2) -> Vec2 {
+    let d = a.lerp(c1, t);
+    let e = c1.lerp(c2, t);
+    let f = c2.lerp(b, t);
+
+    let g = d.lerp(e, t);
+    let h = e.lerp(f, t);
+    g.lerp(h, t)
+}
+
+// controls are relative to interval
+// return y value
+pub fn bezier_transect(t: f32, x_intervals: &[f32], y_heights: &[f32], controls: &[(Vec2, Vec2)]) -> f32 {
+    assert_eq!(x_intervals.len(), controls.len());
+    assert_eq!(y_heights.len(), controls.len() + 1);
+    assert_eq!(t >= 0.0 && t <= 1.0, true);
+    
+    let (interval, interval_t) = x_in_list(t, x_intervals);
+    let a = Vec2::new(0.0, y_heights[interval]);
+    let b = Vec2::new(1.0, y_heights[interval + 1]);
+    let (dc1, dc2) = controls[interval];
+    let (c1, c2) = (dc1 + a, dc2 + b);
+
+    bezier3(interval_t, a, b, c1, c2).y
+}
