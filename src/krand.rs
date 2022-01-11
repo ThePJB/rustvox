@@ -86,10 +86,10 @@ pub fn grad2_isotropic(x: f32, y: f32, seed: u32) -> f32 {
 }
 
 pub fn fgrad2_isotropic(x: f32, y: f32, seed: u32) -> f32 {
-    (1.000 * grad2_isotropic(x, y, seed*0x3523423) +
-    0.500 * grad2_isotropic(x * 2.0, y * 2.0, seed*0xF73DB187) + 
-    0.250 * grad2_isotropic(x * 4.0, y * 4.0, seed*0x159CBAFE) + 
-    0.125 * grad2_isotropic(x * 8.0, y * 8.0, seed*0x83242364)) /
+    (1.000 * grad2_isotropic(x, y, seed.wrapping_mul(0x3523423)) +
+    0.500 * grad2_isotropic(x * 2.0, y * 2.0, seed.wrapping_mul(0xF73DB187)) + 
+    0.250 * grad2_isotropic(x * 4.0, y * 4.0, seed.wrapping_mul(0x159CBAFE)) + 
+    0.125 * grad2_isotropic(x * 8.0, y * 8.0, seed.wrapping_mul(0x83242364))) /
     1.675
 }
 
@@ -127,10 +127,10 @@ pub fn grad2_isotropic_exp(x: f32, y: f32, seed: u32) -> f32 {
 }
 
 pub fn fgrad2_isotropic_exp(x: f32, y: f32, seed: u32) -> f32 {
-    (1.000 * grad2_isotropic_exp(x, y, seed*0x3523423) +
-    0.500 * grad2_isotropic_exp(x * 2.0, y * 2.0, seed*0xF73DB187) + 
-    0.250 * grad2_isotropic_exp(x * 4.0, y * 4.0, seed*0x159CBAFE) + 
-    0.125 * grad2_isotropic_exp(x * 8.0, y * 8.0, seed*0x83242364)) /
+    (1.000 * grad2_isotropic_exp(x, y, seed.wrapping_mul(0x3523423)) +
+    0.500 * grad2_isotropic_exp(x * 2.0, y * 2.0, seed.wrapping_mul(0xF73DB187)) + 
+    0.250 * grad2_isotropic_exp(x * 4.0, y * 4.0, seed.wrapping_mul(0x159CBAFE)) + 
+    0.125 * grad2_isotropic_exp(x * 8.0, y * 8.0, seed.wrapping_mul(0x83242364))) /
     1.675
 }
 

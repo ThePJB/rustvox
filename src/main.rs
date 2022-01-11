@@ -8,7 +8,9 @@ mod priority_queue;
 mod world_gen;
 mod settings;
 mod camera;
+mod kimg;
 
+use kimg::*;
 use glow::*;
 use glam::{Vec3, Mat4};
 use std::error::Error;
@@ -33,6 +35,30 @@ Coordinate system:
 LH
 
 */
+
+fn screenshot(gl: &glow::Context, w: usize, h: usize) {
+    // gl read pixels etc
+    let size = (w*h*4);
+    let mut buf = vec![0; size];
+    let ppd = PixelPackData::Slice(&mut buf);
+    unsafe {
+        gl.read_pixels(0, 0, w as i32, h as i32, RGBA, UNSIGNED_BYTE, ppd);
+    }
+    let mut imbuf = ImageBuffer::new(w as usize, h as usize);
+    // y is flipped colours are cooked
+    for i in 0..w {
+        for j in 0..h {
+            let colour = (
+                buf[4 * i +  4 * (h-j-1) * w + 0],
+                buf[4 * i +  4 * (h-j-1) * w + 1],
+                buf[4 * i +  4 * (h-j-1) * w + 2],
+            );
+
+            imbuf.set_px(i, j, colour);
+        }
+    }
+    imbuf.dump_to_file("screen.png");
+}
 
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -138,7 +164,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // game stuff
         // let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u32;
-        let seed = 0;
+        let seed = 69;
         let gen = GenBeach::new(seed);
 
         let mut chunk_manager = ChunkManager::new(&gl, &gen);
@@ -457,6 +483,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         match (virtual_code, state) {
                             (glutin::event::VirtualKeyCode::Escape, _) => {
                                 cleanup();
+                            },
+                            (glutin::event::VirtualKeyCode::F2, _) => {
+                                screenshot(&gl, window_x as usize, window_y as usize);
                             },
                         _ => (),
                     }},

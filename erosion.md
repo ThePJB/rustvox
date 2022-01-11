@@ -96,3 +96,16 @@ and I think the distance function thing can make it have nice properties as far 
 
 
 
+wetlands, make it look kinda cellular, have 
+
+mud flats
+
+this one looks kinda uncanny but unique
+could have volcanic fissures or something
+
+
+the underlying heightmap that the beach is 'convolved' onto is important, max smooth its 0..1 but variation is good too
+how to generate a satisfying underlying heightmap
+
+lodmesh, fog, salt and pepper fog?
+AA
