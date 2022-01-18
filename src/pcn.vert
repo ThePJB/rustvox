@@ -4,8 +4,11 @@ layout (location = 2) in vec3 in_normal;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform vec3 cam_pos;
+uniform vec3 cam_dir;
 
 out vec4 vert_colour;
+out float depth;
 
 const vec3 sun_dir = normalize(vec3(0.2, 0.3, 0.4));
 
@@ -18,4 +21,6 @@ void main() {
     vert_colour = vec4(in_colour.xyz * brightness, in_colour.w);
     // vert_colour = (vec4(in_pos, 1.0)).xyz;
     gl_Position = projection * view * vec4(in_pos, 1.0);
+
+    depth = distance(cam_pos, in_pos);
 }

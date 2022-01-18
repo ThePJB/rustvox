@@ -109,3 +109,25 @@ how to generate a satisfying underlying heightmap
 
 lodmesh, fog, salt and pepper fog?
 AA
+
+
+boulders
+
+blades of grass: yellow, green
+
+immersive environmental effects would be cool
+weather, degree of fog changes
+yellowy scattering near sun
+skybox etc
+horror fog
+
+maybe lodmesh would go well
+
+basic environment simulation like a markov chain
+silent hill fog
+
+brain is mush today thats ok
+
+distance based film grain? could easy transition to lodmesh, or make lodmesh especially grainy and quieten with fog
+
+definitely some tidying up needs doing. care of abstractions.

@@ -9,6 +9,7 @@ mod world_gen;
 mod settings;
 mod camera;
 mod kimg;
+mod game;
 
 use kimg::*;
 use glow::*;
@@ -60,7 +61,6 @@ fn screenshot(gl: &glow::Context, w: usize, h: usize) {
     imbuf.dump_to_file("screen.png");
 }
 
-
 fn main() -> Result<(), Box<dyn Error>> {
 
     let mut window_x = 1600.0;
@@ -69,10 +69,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let fovx = 0.9;
     let a = window_x / window_y;
 
+
     // let proj = Mat4::perspective_lh(fovx, 16.0/9.0, 0.01, 1000.0);
 
 
     // println!("proj: {}", proj);
+
+
+
 
     unsafe {
         let event_loop = glutin::event_loop::EventLoop::new();
@@ -80,6 +84,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_title("Rustvox")
             .with_inner_size(glutin::dpi::PhysicalSize::new(window_x, window_y));
         let window = glutin::ContextBuilder::new()
+            .with_depth_buffer(0)
+            .with_srgb(true)
+            .with_stencil_buffer(0)
             .with_vsync(true)
             .build_windowed(window_builder, &event_loop)
             .unwrap()
@@ -91,12 +98,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
         gl.enable(DEPTH_TEST);
         gl.enable(CULL_FACE);
-        gl.clear_color(0.0, 0.0, 0.0, 0.0);
+        gl.clear_color(0.7, 0.7, 0.4, 1.0);
         gl.blend_func(SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
         gl.enable(BLEND);
         gl.debug_message_callback(|a, b, c, d, msg| {
             println!("{} {} {} {} msg: {}", a, b, c, d, msg);
         });
+
+        let mut egui_glow = egui_glow::EguiGlow::new(&window, &gl);
+
 
         let program_pc = gl.create_program().expect("Cannot create program");
 
@@ -165,7 +175,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // game stuff
         // let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u32;
         let seed = 69;
-        let gen = GenBeach::new(seed);
+        let gen = GenWarp::new(seed);
 
         let mut chunk_manager = ChunkManager::new(&gl, &gen);
 
@@ -271,33 +281,42 @@ fn main() -> Result<(), Box<dyn Error>> {
         let plane_s = 1000.0;
         let plane_h = 1.0;
 
+        let sky_cx = 0.7;
+        let sky_cy = 0.7;
+        let sky_cz = 0.4;
+
+        let void_cx = 0.7;
+        let void_cy = 0.7;
+        let void_cz = 0.4;
+    
+
         // sky plane void plane
         let plane_verts = vec![
             plane_s, plane_h, plane_s,
-            0.4, 0.4, 0.7,
+            sky_cx, sky_cy, sky_cz,
 
             plane_s, plane_h, -plane_s,
-            0.4, 0.4, 0.7,
+            sky_cx, sky_cy, sky_cz,
 
 
             -plane_s, plane_h, -plane_s,
-            0.4, 0.4, 0.7,
+            sky_cx, sky_cy, sky_cz,
 
             -plane_s, plane_h, plane_s,
-            0.4, 0.4, 0.7,
+            sky_cx, sky_cy, sky_cz,
 
 
             -plane_s, -plane_h, -plane_s,
-            0.0, 0.0, 0.5,
+            void_cx, void_cy, void_cz,
 
             plane_s, -plane_h, -plane_s,
-            0.0, 0.0, 0.5,
+            void_cx, void_cy, void_cz,
 
             plane_s, -plane_h, plane_s,
-            0.0, 0.0, 0.5,
+            void_cx, void_cy, void_cz,
 
             -plane_s, -plane_h, plane_s,
-            0.0, 0.0, 0.5,
+            void_cx, void_cy, void_cz,
         ];
 
         let plane_idxs = vec![
@@ -323,17 +342,29 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
         event_loop.run(move |event, _, control_flow| {
-
+            
+            let (needs_repaint, shapes) = egui_glow.run(window.window(), |egui_ctx| {
+                egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+                    ui.heading("Hello World!");
+                    if ui.button("Quit").clicked() {
+                        println!("spaget");
+                    }
+                });
+            });
+            // println!("{:?}", shapes);
 
             *control_flow = ControlFlow::Poll;
 
             let mut cleanup = || {
                 gl.delete_program(program_pc);
                 gl.delete_program(program_pcn);
+                // egui_glow.destroy(&gl);
                 *control_flow = ControlFlow::Exit;
             };
 
             match event {
+
+
                 Event::LoopDestroyed |
                 Event::WindowEvent {event: WindowEvent::CloseRequested, ..} |
                 Event::WindowEvent {event: WindowEvent::KeyboardInput {
@@ -410,8 +441,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                     false, &proj.to_cols_array());
                     gl.uniform_matrix_4_f32_slice(gl.get_uniform_location(program_pcn, "view").as_ref(),
                         false, &view.to_cols_array());
+                    gl.uniform_3_f32(gl.get_uniform_location(program_pcn, "cam_pos").as_ref(), cam.pos.x, cam.pos.y, cam.pos.z);
+                    gl.uniform_3_f32(gl.get_uniform_location(program_pcn, "cam_dir").as_ref(), cam.dir.x, cam.dir.y, cam.dir.z);
 
                     chunk_manager.draw(&gl, &cam);
+
+
+                    gl.disable(DEPTH_TEST);
+                    egui_glow.paint(&window, &gl, shapes);
+                    gl.enable(DEPTH_TEST);
+                    // well there are shapes but its not drawing them idk. shouldnt be that bloody hard. it would help if I understood how this crazy ass shit worked
                     
                     let finish_draw = SystemTime::now();
                     
@@ -445,7 +484,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         0
                     })).fold((0,0), |(ao, at), (o, t)| (ao + o, at + t));
 
-                    println!("events: {:.2} update: {:.2} treadmill: {:.2}, draw: {:.2} swap: {:.2} omesh: {} kotri: {} tmesh: {} kttri:{}", t_events*1000.0, t_update*1000.0, t_treadmill*1000.0, t_draw*1000.0, t_swap*1000.0, omesh, otri/1000, tmesh, ttri/1000);
+                    // println!("events: {:.2} update: {:.2} treadmill: {:.2}, draw: {:.2} swap: {:.2} omesh: {} kotri: {} tmesh: {} kttri:{}", t_events*1000.0, t_update*1000.0, t_treadmill*1000.0, t_draw*1000.0, t_swap*1000.0, omesh, otri/1000, tmesh, ttri/1000);
                     window.window().set_title(&format!("RustVox | {:.2}ms", dt*1000.0));
                 }
 
@@ -458,38 +497,42 @@ fn main() -> Result<(), Box<dyn Error>> {
                 },
 
 
-                Event::WindowEvent { ref event, .. } => match event {
-                    WindowEvent::Resized(physical_size) => {
-                        window.resize(*physical_size);
-                        window_x = physical_size.width as f32;
-                        window_y = physical_size.height as f32;
-                        gl.viewport(0, 0, physical_size.width as i32, physical_size.height as i32);
-                        println!("aspect ratio: {:?}", window_x / window_y);
-                        // prob update aspect  ratio in camera
+                Event::WindowEvent { ref event, .. } =>{
+                    egui_glow.on_event(&event);
 
-                    }
-                    WindowEvent::CloseRequested => {
-                        cleanup();
-                    }
-                    WindowEvent::KeyboardInput {
-                        input: glutin::event::KeyboardInput { virtual_keycode: Some(virtual_code), state, .. },
-                        ..
-                    } => {
-                        match state {
-                            glutin::event::ElementState::Pressed => held_keys.insert(*virtual_code),
-                            glutin::event::ElementState::Released => held_keys.remove(virtual_code),
-                        };
+                    match event {
+                        WindowEvent::Resized(physical_size) => {
+                            window.resize(*physical_size);
+                            window_x = physical_size.width as f32;
+                            window_y = physical_size.height as f32;
+                            gl.viewport(0, 0, physical_size.width as i32, physical_size.height as i32);
+                            println!("aspect ratio: {:?}", window_x / window_y);
+                            // prob update aspect  ratio in camera
 
-                        match (virtual_code, state) {
-                            (glutin::event::VirtualKeyCode::Escape, _) => {
-                                cleanup();
-                            },
-                            (glutin::event::VirtualKeyCode::F2, _) => {
-                                screenshot(&gl, window_x as usize, window_y as usize);
-                            },
+                        }
+                        WindowEvent::CloseRequested => {
+                            cleanup();
+                        }
+                        WindowEvent::KeyboardInput {
+                            input: glutin::event::KeyboardInput { virtual_keycode: Some(virtual_code), state, .. },
+                            ..
+                        } => {
+                            match state {
+                                glutin::event::ElementState::Pressed => held_keys.insert(*virtual_code),
+                                glutin::event::ElementState::Released => held_keys.remove(virtual_code),
+                            };
+
+                            match (virtual_code, state) {
+                                (glutin::event::VirtualKeyCode::Escape, _) => {
+                                    cleanup();
+                                },
+                                (glutin::event::VirtualKeyCode::F2, _) => {
+                                    screenshot(&gl, window_x as usize, window_y as usize);
+                                },
+                            _ => (),
+                        }},
                         _ => (),
-                    }},
-                    _ => (),
+                    }
                 },
                 _ => (),
             }
