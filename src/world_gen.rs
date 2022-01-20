@@ -14,7 +14,7 @@ i wonder if some fancy combinator is possible... sounds slow lol
 pub const SEA_LEVEL_F32: f32 = 0.0;
 pub const SEA_LEVEL_I32: i32 = 0;
 
-pub trait LevelGenerator: Clone + Send + Sync + 'static {
+pub trait LevelGenerator: Clone + Send + Sync + Sized + 'static {
 
     fn height(&self, x: f32, z: f32) -> f32;
     fn generate_blocks(&self, ox: i32, oy: i32, oz: i32) -> Vec<Block>;

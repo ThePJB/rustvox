@@ -4,6 +4,7 @@ use crate::kmath::*;
 use bytemuck::*;
 use crate::chunk_manager::*;
 use crate::world_gen::*;
+use crate::world_gen2::*;
 use crate::settings::*;
 
 
@@ -170,7 +171,7 @@ const CUBE_VERTS: [f32; 72] = [
 ];
 
 impl ChunkData {
-    pub fn new(cc: ChunkCoordinates, level_gen: &impl LevelGenerator) -> ChunkData {
+    pub fn new(cc: ChunkCoordinates, level_gen: &WorldGen) -> ChunkData {
         ChunkData {
             blocks: level_gen.generate_blocks(cc.x, cc.y, cc.z),
             cc,

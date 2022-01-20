@@ -5,7 +5,8 @@ use glam::Mat4;
 use crate::chunk::*;
 use crate::kmath::*;
 use crate::priority_queue::*;
-use crate::world_gen::*;
+// use crate::world_gen::*;
+use crate::world_gen2::*;
 use crate::settings::*;
 use crate::camera::*;
 use crossbeam::*;
@@ -72,10 +73,11 @@ pub struct ChunkManager {
     job_sender: Sender<ChunkCoordinates>,
     chunk_receiver: Receiver<(ChunkData, (Vec<f32>, Vec<u32>), (Vec<f32>, Vec<u32>))>,    // might be doing unnecessary copying
     loading: HashSet<ChunkCoordinates>,
+    gen: WorldGen,
 }
 
 impl ChunkManager {
-    pub fn new(gl: &glow::Context, gen: &impl LevelGenerator) -> ChunkManager {
+    pub fn new(gl: &glow::Context, gen: WorldGen) -> ChunkManager {
         let mut chunk_map = HashMap::new();
 
         let (job_sender, job_receiver) = unbounded();
@@ -84,7 +86,7 @@ impl ChunkManager {
         for i in 0..N_WORKERS {
             let job_receiver =  job_receiver.clone();
             let chunk_sender = chunk_sender.clone();
-            let gen = gen.clone();
+            // let gen = gen.clone();
             std::thread::spawn(move || {
                 let thread_gen = gen.clone();
 
@@ -103,6 +105,7 @@ impl ChunkManager {
             job_sender,
             chunk_receiver,
             loading: HashSet::new(),
+            gen,
         }
     }
 
@@ -142,7 +145,7 @@ impl ChunkManager {
         }
     }
 
-    pub fn treadmill(&mut self, gl: &glow::Context, cam: &Camera, gen: &impl LevelGenerator) {
+    pub fn treadmill(&mut self, gl: &glow::Context, cam: &Camera) {
         let in_chunk = ChunkCoordinates::containing_world_pos(cam.pos);
 
         self.chunk_map.retain(|cc, chunk| {
