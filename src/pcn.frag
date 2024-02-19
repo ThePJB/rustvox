@@ -21,4 +21,6 @@ void main() {
 
     frag_colour = vec4(mix(vert_colour.xyz, fog_colour, fogAmount), vert_colour.w);
     // frag_colour = vert_colour;
+    float gamma = 2.2;
+    frag_colour.rgb = pow(frag_colour.rgb, vec3(1.0/gamma));
 }

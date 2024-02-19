@@ -219,3 +219,21 @@ could dither in the stone from cliffs with hf noise
 grass on top, sand on top
 
 do nice fog
+
+-----------
+world gen: composition of functions and derivatives of functions
+
+could you have it be low res with a clean dithering shader and limited 3d, but voxels
+so basically all 1 colour or something and then 
+
+damn imagine 2d silhouetted leggy boy billboards for enemies with IK
+
+it sounds like it looks cool, I hope combat is satisfying, I guess it would mostly be casting spells
+
+
+just generate meshes
+generate elevation changes, boulders, cover, etc
+
+could even have fps vibes
+I always just gravitate to open world wizards
+its the 3d version of wizrad
