@@ -64,7 +64,7 @@ Warp w/ beachness s/t lines of equal beachness vary slowly but perpendicular not
 or just vary very low freq spatially might not be a problem
 
 got it started its not very convincing yet but we'll get there!
-transition from dune back to land is shit
+transition from dune back to land is stuff
 i think its meant to get higher and then come back down, needs another transition function
 or up, in case of headland, could be a discontinuous lerp thing
 
@@ -73,7 +73,7 @@ good erosion: have one (discontinuous) map for hardness of rock and one continuo
 
 structures: a special kind of chunk unioned with the ones it needs to touch
 
-doing it with cos is a cunt
+doing it with cos is a stuff
 how about bezier curves for transects?
 
 

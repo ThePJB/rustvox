@@ -43,8 +43,8 @@ pub fn khash_3float(x: u32, y: u32, z: u32, seed: u32) -> f32 {
 
 fn bilinear(a: f32, b: f32, c: f32, d: f32, t1: f32, t2: f32) -> f32 {
     //let u = |x| x*x*(3.0-2.0*x);
-    //let u = |x| x*x*(10.0-3.0*x*(5.0-2.0*x));                 // looks fucked, directional artifacts I wonder why. maybe because derivative is discontinuous in middle
-    //let u = |x: f32| (std::f32::consts::FRAC_PI_2*x).sin();   // looks fucked, I expected better from you sin, maybe derivative discontinuous in middle
+    //let u = |x| x*x*(10.0-3.0*x*(5.0-2.0*x));                 // looks stuffed, directional artifacts I wonder why. maybe because derivative is discontinuous in middle
+    //let u = |x: f32| (std::f32::consts::FRAC_PI_2*x).sin();   // looks stuffed, I expected better from you sin, maybe derivative discontinuous in middle
     //let u = |x| x;
     let u = |x| ((6.0*x - 15.0)*x + 10.0)*x*x*x;
     lerp(lerp(a, b, u(t1)), lerp(c, d, u(t1)), u(t2))

@@ -196,7 +196,7 @@ impl ChunkData {
                             continue;
                         }
                         if block == Block::Water {
-                            panic!("shouldnt be water retard")
+                            panic!("shouldnt be water stuff")
                         }
 
                         // cull

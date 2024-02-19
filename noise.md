@@ -39,7 +39,7 @@ its going to look quite good with the gradient thing
 
 amit touches on the exponential thing with noise
 
-can absolutely have stupid fucking big mountains as a fantasy biome with something on the top, guarded by flying enemies or something, maybe surrounded with cloud lol
+can absolutely have stupid stuffing big mountains as a fantasy biome with something on the top, guarded by flying enemies or something, maybe surrounded with cloud lol
 
 imagine having a domain repitition esque structure where they just got bigger and bigger, acid world
 big fibo spiral or something
@@ -83,4 +83,4 @@ https://www.decarpentier.nl/scape-procedural-extensions
 its actually used in fbm to tweak the noise of finer octaves, its pretty fair you want more hf in the cliffy side bits i think
 
 cool well im spent
-maybe organize the world gen a bit better. fuck around more with mountains or do something different
+maybe organize the world gen a bit better. stuff around more with mountains or do something different

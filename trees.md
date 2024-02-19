@@ -17,4 +17,4 @@ then trees
 each can just be a hashmap I guess
 
 
-in addition the base height map could be simulated rather than generated, e.g. erosion, CA, some voronoi shit
+in addition the base height map could be simulated rather than generated, e.g. erosion, CA, some voronoi stuff

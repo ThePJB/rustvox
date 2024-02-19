@@ -21,7 +21,7 @@ Worldgen remarks
 * could simplify the trait to have an output to 2d and a input thats just xyz, 2d thing, meh
 
 * what can be made direct, probably could do trees with the right noise function if you  just do a quick local numerical search on it
-* so much shit you can do on noise function really
+* so much stuff you can do on noise function really
 * newtons method on perlin noise -> blue noise?
 * maybe you could have a direct formula for still water if you detected a local minimum.. but nah
 * but i wonder what effects you could get with neighbourhood sampling, e.g. valley microclimate
@@ -30,7 +30,7 @@ Worldgen remarks
 * headland: a component of noise smooth minned into normal landscape, clamped hard by coastline mask
  * maybe a general approach to cliffs as well. like the sand and stuff at the footing though...
 
-* can probably do some cool shit with edge detection for sulfite pools maybe
+* can probably do some cool stuff with edge detection for sulfite pools maybe
  * reminds me of the roots water in aoe2
 
 * dark world with super gay swamp areas that suck to traverse
@@ -43,7 +43,7 @@ could have a real simple classifier to say if a tile e.g. it satisifes X and nei
 classifier biomes could be spicy than traditional forward minecraft biomes
 
 
-periodic could be fine for real big shit tbh, it could even be chunk aligned and just a bool yes or no for each chunk
+periodic could be fine for real big stuff tbh, it could even be chunk aligned and just a bool yes or no for each chunk
 
 what about periodic but domain warped
 play with domain warping hey. is normal just like domain warping the identity function?
@@ -64,10 +64,10 @@ probably worth it to implement 'cheap indirect' as a general thing - quadtree or
 
 # Problems
 * Need debug information, stupid holes in world
-    It seems like its literally doing everything correctly and then drawing the wrong fucking thing on the screen
+    It seems like its literally doing everything correctly and then drawing the wrong stuffing thing on the screen
 * Remove glam
 * unloading might be slightly lazy
-* weird shit when you go in the ground
+* weird stuff when you go in the ground
 * lel mouse scrolling is on a different axis and im not handling it
 * screenshot button
 
@@ -96,7 +96,7 @@ do that
 * greedy meshing: do it face at a time?
 * or can you mesh first and do it from the buffer? - intermediate format for faces? then runs would be super easy
 greedy meshing squares but maybe you would identify breaks or something. probs dont get too fancy lol
-basically just faces + RLE. doing square shit is hectic but you could do it if it would be worth it. rle strips to squares and rle strips
+basically just faces + RLE. doing square stuff is hectic but you could do it if it would be worth it. rle strips to squares and rle strips
 rle chunks in memory??? until written or something. lighting would be like nah lad, but you could separate
 how about mesh, maybe an rle chunk actually gets meshed super easy....
 
@@ -106,7 +106,7 @@ maybe chunks should just always be rle bro
 oh but muh random access, i mean like right now its fine lol
 maybe you could have some kinda data structure for column axis, do queries like highest X
 
-it would achieve a fucked up level of compression like 95%
+it would achieve a stuffed up level of compression like 95%
 
 
 seems to be some issues with floating point accuracy
@@ -114,7 +114,7 @@ try wonkifying organic blocks like grass
 randomize colour of grass
 
 have some nice distance fog
-maybe you can blend it into the lodmesh or whatever. world ending is shit
+maybe you can blend it into the lodmesh or whatever. world ending is stuff
 loaded chunks volume: wider probably good
 is air expensive or nah?
 earth curvature transofrmation
@@ -124,12 +124,12 @@ backface culling
 
 sort front to back for rendering or whatever
 
-multithreading generation means separating chunk data from gpu shit
+multithreading generation means separating chunk data from gpu stuff
 
 something is wrong with unloading or something
 
-+z fucked for winding order
-also framerate dependent physics I think, get that shit straight with opengl hey
++z stuffed for winding order
+also framerate dependent physics I think, get that stuff straight with opengl hey
 
 could have mad pokey uppey boys for cliffs. just discontinuous ay. the range remapping could do that. again it could be also varied, or sit on top of things, etc
 
