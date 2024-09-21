@@ -1,4 +1,5 @@
 use glow::*;
+use crate::as_bytes::*;
 
 pub struct Elemesh {
     vao: glow::NativeVertexArray,
@@ -21,20 +22,9 @@ impl Elemesh {
             gl.enable_vertex_attrib_array(0);
             gl.vertex_attrib_pointer_f32(1, 3, glow::FLOAT, false, 4*2*3, 4*3);
             gl.enable_vertex_attrib_array(1);
-
-            let vertex_u8 = {
-                let (ptr, len, cap) = vertex_data.into_raw_parts();
-                Vec::from_raw_parts(ptr as *mut u8, len*4, cap*4)
-            };
-            let element_u8 = {
-                let (ptr, len, cap) = index_data.into_raw_parts();
-                Vec::from_raw_parts(ptr as *mut u8, len*2, cap*2)
-            };
-            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &vertex_u8, glow::STATIC_DRAW);
+            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &vertex_data.as_bytes(), glow::STATIC_DRAW);
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ebo));
-            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &element_u8, glow::STATIC_DRAW);
-            drop(element_u8);
-            drop(vertex_u8);
+            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &index_data.as_bytes(), glow::STATIC_DRAW);
 
             (vao, vbo, ebo)
         };

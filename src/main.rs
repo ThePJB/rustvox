@@ -1,4 +1,3 @@
-#![feature(vec_into_raw_parts)]
 mod chunk;
 mod chunk_manager;
 mod elemesh;
@@ -11,6 +10,7 @@ mod camera;
 mod kimg;
 mod game;
 mod world_gen2;
+mod as_bytes;
 
 use kimg::*;
 use glow::*;

@@ -104,7 +104,7 @@ impl Game {
         let gen = WorldGen::new(69);
         let chunk_manager = ChunkManager::new(&gl, gen);
 
-        let cam = Camera::new(fovx, default_xres/default_yres, Vec3::new(0.0, gen.height(0.0, 0.0) + 3.0, 0.0));
+        let cam = Camera::new(fovx, default_xres/default_yres, Vec3::new(0.0, gen.height(0.0, 0.0) + 1.0, 0.0));
 
         let mut game = Game {
             show_menu: false,
@@ -118,8 +118,8 @@ impl Game {
             pcn_program,
             chunk_manager,
             cam,
-            fog_intensity: 0.003,
-            fog_colour: [0.7, 0.7, 0.4],
+            fog_intensity: 0.0003,
+            fog_colour: [0.0, 0.0, 0.0],
         };
 
         game.lock_focus();
@@ -237,7 +237,7 @@ impl Game {
             self.window.window().set_cursor_position(glutin::dpi::PhysicalPosition::new((self.xres/2.0) as i32, (self.yres/2.0) as i32)).unwrap();
         }
 
-        let speed = 128.0f32;
+        let speed = 32.0f32;
         if held_keys.contains(&glutin::event::VirtualKeyCode::W) {
             self.cam.update_z(speed*dt as f32);
         }
